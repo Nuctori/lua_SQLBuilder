@@ -12,7 +12,7 @@ local function class(name, super)
     setmetatable(cls, {__index = super,
         __call = function(self, ...) return self.new(...) end})
 
-    if cls.ctor then
+    if not cls.ctor then
         cls.ctor = function(self, ...) end
     end
 
