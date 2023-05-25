@@ -1,6 +1,7 @@
-# SqlBuilder Library
+# lua_SQLBuilder
 
-The SqlBuilder library provides a flexible and convenient way to construct SQL statements in Lua. It offers a basic SQLBuilder object that provides interfaces to construct any SQL statement, including WHERE, OR, ORDER_BY, DESC, ASC, GROUP_BY, HAVING, LIMIT, FOR_UPDATE, and PROCEDURE. 
+
+The lua_SQLBuilder library provides a flexible and convenient way to construct SQL statements in Lua. It offers a basic SQLBuilder object that provides interfaces to construct any SQL statement, including WHERE, OR, ORDER_BY, DESC, ASC, GROUP_BY, HAVING, LIMIT, FOR_UPDATE, and PROCEDURE. 
 
 ## Usage
 
