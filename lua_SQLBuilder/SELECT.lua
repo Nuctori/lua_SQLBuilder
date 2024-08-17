@@ -50,6 +50,8 @@ function SELECT:QUERY(queryTable)
             end
         elseif type(query) == "userdata"  then
             self:WHERE(fmt("`%s` is NULL", field))
+        elseif type(query) == "boolean" then
+            self:WHERE(fmt("`%s` = ?", field), tostring(query))
         else
             self:WHERE(fmt("`%s` = ?", field), query)
         end
