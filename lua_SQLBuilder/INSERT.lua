@@ -93,7 +93,13 @@ function INSERT:DATA(t)
     local value = {}
     self.values[1] = value
     -- 给插入数据的字段排序，确保生成一致性
-    for col, val in pairs(t) do
+    local keys = {}
+    for col in pairs(t) do
+        keys[#keys + 1] = col
+    end
+    tsort(keys)
+    for _, col in ipairs(keys) do
+        local val = t[col]
         self.cols[#self.cols + 1] = fmt("`%s`", col)
         if type(val) == "table" then
             val = json.encode(val)
