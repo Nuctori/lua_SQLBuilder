@@ -110,8 +110,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libmysqlclient-dev libpq-dev
-          luarocks install luasql-mysql
-          luarocks install luasql-postgres
+          if [ "${{ matrix.db }}" = "mysql" ]; then
+            luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql MYSQL_LIBDIR=/usr/lib/x86_64-linux-gnu
+          else
+            luarocks install luasql-postgres
+          fi
       - name: Run integration specs against ${{ matrix.db }}
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:

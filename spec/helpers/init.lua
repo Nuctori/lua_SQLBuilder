@@ -6,10 +6,11 @@
 
 local function project_root()
   local src = debug.getinfo(1, "S").source
-  -- source is like "@spec/helpers/init.lua" (CI, relative) or
-  -- "@D:\lua\lua_SQLBuilder\spec\helpers\init.lua" (local, absolute)
+  -- source is like "@spec/helpers/init.lua" (CI, relative, may carry a
+  -- leading "./") or "@D:\lua\lua_SQLBuilder\spec\helpers\init.lua" (local)
   local path = src:sub(2)
   path = path:gsub("\\", "/")
+  path = path:gsub("^%.%./", "")
   path = path:gsub("/spec/helpers/init.lua$", "")
   if path == "" then
     path = "."

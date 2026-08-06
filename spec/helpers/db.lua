@@ -77,7 +77,8 @@ local function connect_sqlite()
     if n > 0 then
       local stmt = assert(self._db:prepare(sql))
       local args = { ... }
-      local ok_bind, err = stmt:bind(unpack(args))
+      -- bind_values(...) binds positionally in order (stmt:bind is index-based)
+      local ok_bind, err = stmt:bind_values(unpack(args))
       if not ok_bind then
         stmt:finalize()
         return nil, err
@@ -93,8 +94,8 @@ local function connect_sqlite()
 
   function conn:query(sql, ...)
     local rows = {}
-    local ok, iter = pcall(self._db.nrows, self._db, sql, ...)
-    if not ok then
+    local ok_q, iter = pcall(self._db.nrows, self._db, sql, ...)
+    if not ok_q then
       return nil, iter
     end
     for row in iter do
@@ -194,8 +195,8 @@ local function connect_luasql(driver, dsn_prefix)
       return self._conn:getlastautoid()
     end
     -- postgres: last sequence value in this session
-    local ok, rows = pcall(self.query, self, "SELECT LASTVAL() AS id")
-    if ok and rows and rows[1] then
+    local ok_rows, rows = pcall(self.query, self, "SELECT LASTVAL() AS id")
+    if ok_rows and rows and rows[1] then
       return rows[1].id
     end
     return nil

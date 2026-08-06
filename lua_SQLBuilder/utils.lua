@@ -119,10 +119,6 @@ function SQLUtils.Make_Query(query)
     for idx, item in ipairs(list) do
         if type(item[2]) == "string" then
             list[idx] = fmt("`%s`='%s'", item[1], item[2])
-        elseif type(item[2]) == "boolean" then
-
-        else
-
         end
     end
     return table.concat(list, " AND ")
