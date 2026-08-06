@@ -28,7 +28,9 @@ local function json_path_mysql(table_name, path)
 end
 
 local function json_path_sqlite(table_name, path)
-  return fmt("%s->>'$.%s'", quote_ident_ansi(table_name), path)
+  -- json_extract works on every sqlite >= 3.9 (the ->> operator needs 3.38+,
+  -- and the lsqlite3 rock may bundle an older amalgamation)
+  return fmt("json_extract(%s, '$.%s')", quote_ident_ansi(table_name), path)
 end
 
 -- PostgreSQL's ->> does not accept the "$.a.b" path syntax; translate the

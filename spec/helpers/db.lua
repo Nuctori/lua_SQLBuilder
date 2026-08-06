@@ -161,9 +161,9 @@ local function connect_pgmoon()
     password = env("POSTGRES_PASSWORD", "postgres"),
     database = env("POSTGRES_DATABASE", "sqlbuilder_test"),
   })
-  local connected, err = pg:connect()
+  local connected, conn_err = pg:connect()
   if not connected then
-    return nil, "connection failed: " .. tostring(err)
+    return nil, "connection failed: " .. tostring(conn_err)
   end
 
   local conn = {
@@ -173,17 +173,17 @@ local function connect_pgmoon()
   }
 
   function conn:exec(sql, ...)
-    local res, err = self._pg:query(sql, ...)
+    local res, exec_err = self._pg:query(sql, ...)
     if res == false then
-      return nil, err
+      return nil, exec_err
     end
     return true
   end
 
   function conn:query(sql, ...)
-    local res, err = self._pg:query(sql, ...)
+    local res, query_err = self._pg:query(sql, ...)
     if res == false then
-      return nil, err
+      return nil, query_err
     end
     local rows = {}
     for _, row in ipairs(res) do
@@ -233,10 +233,10 @@ local function connect_luasql_mysql()
   local password = env("MYSQL_PASSWORD", "root")
   local database = env("MYSQL_DATABASE", "sqlbuilder_test")
 
-  local handle, err = env_obj:connect(database, user, password, host, port)
+  local handle, connect_err = env_obj:connect(database, user, password, host, port)
   if not handle then
     env_obj:close()
-    return nil, "connection failed: " .. tostring(err)
+    return nil, "connection failed: " .. tostring(connect_err)
   end
 
   local conn = {
@@ -262,20 +262,20 @@ local function connect_luasql_mysql()
   end
 
   function conn:query(sql)
-    local cursor, err = self._conn:execute(sql)
+    local cursor, query_err = self._conn:execute(sql)
     if not cursor then
-      return nil, err
+      return nil, query_err
     end
-    local names = cursor:getcolnames()
+    -- Named fetch mode returns {col=value} rows directly (getcolnames is
+    -- unreliable across LuaSQL builds)
     local rows = {}
     while true do
-      local raw = cursor:fetch({}, "a")
+      local raw = cursor:fetch({}, "n")
       if not raw then break end
       local normalized = {}
-      for i, name in ipairs(names) do
-        local v = raw[i]
+      for k, v in pairs(raw) do
         if v ~= nil then
-          normalized[name] = normalize_value(v)
+          normalized[k] = normalize_value(v)
         end
       end
       rows[#rows + 1] = normalized

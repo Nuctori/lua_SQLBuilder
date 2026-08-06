@@ -56,6 +56,6 @@ describe("SELECT", function()
 
   it("renders JSON paths per dialect (sqlite)", function()
     local sql = SELECT("*", { dialect = "sqlite" }):FROM("user"):QUERY({ json = { star = 5 } }):to_sql()
-    assert.equal('SELECT * FROM user WHERE ("json"->>\'$.star\' = \'5\')', sql)
+    assert.equal('SELECT * FROM user WHERE (json_extract("json", \'$.star\') = \'5\')', sql)
   end)
 end)
