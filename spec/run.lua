@@ -10,7 +10,7 @@ local minibusted = require "spec.helpers.minibusted"
 
 local dirs = { ... }
 if #dirs == 0 then
-  dirs = { "spec/unit", "spec/production", "spec/integration" }
+  dirs = { "spec/unit", "spec/audit", "spec/production", "spec/integration" }
 end
 
 local ok = minibusted.run(dirs)

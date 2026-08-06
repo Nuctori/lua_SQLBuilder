@@ -2,7 +2,7 @@ local SQLUtils = {}
 local fmt = string.format
 local tsort = table.sort
 local tconcat = table.concat
-local unpack = table.unpack or unpack
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 local json = require "lua_SQLBuilder.json"
 local dialect_mod = require "lua_SQLBuilder.dialect"
 

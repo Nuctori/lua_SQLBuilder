@@ -3,7 +3,7 @@
 
 local fixtures = {}
 
-local unpack = table.unpack or unpack
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 fixtures.tables = { "users", "book", "likes", "chapter" }
 
@@ -30,9 +30,10 @@ local schemas = {
 
 local seeds = {
   users = {
-    { 1, "alice", 1, 100, '{"star":5,"tags":["x","y"],"nested":{"k":1}}' },
+    { 1, "alice", 1, 100, '{"star":5,"tags":["x","y"],"nested":{"k":1},"kind":"admin"}' },
     { 2, "bob", 0, 50, '{"star":3,"tags":[],"nested":{"k":0}}' },
-    { 3, "carol", 1, 75, nil },
+    -- JSON literal null behaves like SQL NULL for ->> path queries on all three DBs
+    { 3, "carol", 1, 75, "null" },
     { 4, "dave O'Brien", 1, 200, '{"star":5}' },
   },
   book = {

@@ -11,7 +11,7 @@ local LIMIT = require "lua_SQLBuilder.sql_comp.LIMIT"
 local SQLBuilder = class("SQLBuilder")
 
 local fmt = string.format
-local unpack = table.unpack or unpack
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 local function MakeSql(op, sql)
     if sql and sql ~= "" then

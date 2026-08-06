@@ -16,7 +16,7 @@
 
 local db = {}
 
-local unpack = table.unpack or unpack
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 local env = function(name, default) return os.getenv(name) or default end
 

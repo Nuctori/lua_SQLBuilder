@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
+        lua: ["5.1", "5.2", "5.3", "5.4", "luajit-2.1"]
     steps:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v13
@@ -40,7 +40,7 @@ jobs:
       - uses: leafo/gh-actions-luarocks@v4
       - run: luarocks install busted
       - name: Run unit specs (pure SQL generation, no DB)
-        run: busted --helper=spec/helpers/init.lua spec/unit spec/production
+        run: busted --helper=spec/helpers/init.lua spec/unit spec/audit spec/production
 
   integration-sqlite:
     name: sqlite integration (Lua ${{ matrix.lua }})
@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
+        lua: ["5.1", "5.2", "5.3", "5.4", "luajit-2.1"]
     steps:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v13
@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lua: ["5.1", "5.4", "luajit-2.1"]
+        lua: ["5.1", "5.2", "5.3", "5.4", "luajit-2.1"]
         db: [mysql, postgres]
     services:
       mysql:

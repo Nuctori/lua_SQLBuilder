@@ -8,7 +8,7 @@ local db = require "spec.helpers.db"
 local fixtures = require "spec.helpers.fixtures"
 local SQLBuilder = require "lua_SQLBuilder"
 
-local unpack = table.unpack or unpack
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 local conn, reason = db.connect()
 if not conn then

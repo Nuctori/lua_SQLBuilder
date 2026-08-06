@@ -59,7 +59,7 @@ describe("INSERT", function()
       INSERT("likes", { dialect = "postgres" }):DATA({ user_id = 1, like_count = 1 })
         :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 })
         :to_sql()
-    end, "conflict")
+    end, "dialect 'postgres' requires conflict target columns (pass them to ON_DUPLICATE_KEY_UPDATE)")
   end)
 
   it("quotes COLS per dialect (postgres)", function()
