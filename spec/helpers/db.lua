@@ -462,7 +462,7 @@ local function connect_clickhouse()
     return rows
   end
 
-  function conn:close() end -- HTTP is stateless
+  conn.close = function() end -- HTTP is stateless
 
   return conn
 end

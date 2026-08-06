@@ -87,11 +87,17 @@ jobs:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
       - run: luarocks install busted
-      - name: Install duckdb driver (in-process, compiles the amalgamation)
+      - name: Install duckdb driver (in-process, needs libduckdb-dev)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
-          luarocks install luasql-duckdb
+          sudo apt-get install -y wget gpg build-essential
+          wget -qO- https://deb.griffo.io/duckdb.gpg | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/duckdb.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/duckdb.gpg] https://deb.griffo.io/ noble main" \
+            | sudo tee /etc/apt/sources.list.d/duckdb.list
+          sudo apt-get update
+          sudo apt-get install -y duckdb libduckdb-dev
+          luarocks install luasql-duckdb DUCKDB_DIR=/usr
       - name: Run integration specs against in-process DuckDB
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:
@@ -109,7 +115,7 @@ jobs:
         image: clickhouse/clickhouse-server:24.8
         ports: ["8123:8123"]
         options: >-
-          --health-cmd="wget -qO- http://localhost:8123/ping | grep -q Ok"
+          --health-cmd="clickhouse-client --query 'SELECT 1'"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20

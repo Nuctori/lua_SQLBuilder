@@ -77,10 +77,12 @@ local seeds = {
 -- Rebuild all tables for the given connection.
 function fixtures.prepare(conn)
   for _, name in ipairs(fixtures.tables) do
-    assert(conn:exec("DROP TABLE IF EXISTS " .. name), "drop " .. name)
+    local ok, err = conn:exec("DROP TABLE IF EXISTS " .. name)
+    assert(ok, "drop " .. name .. ": " .. tostring(err))
   end
   for _, ddl in ipairs(schemas[conn.dialect]) do
-    assert(conn:exec(ddl), "create: " .. ddl)
+    local ok, err = conn:exec(ddl)
+    assert(ok, "create: " .. ddl .. " => " .. tostring(err))
   end
   for _, name in ipairs(fixtures.tables) do
     for _, row in ipairs(seeds[name]) do
