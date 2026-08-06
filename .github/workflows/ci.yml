@@ -181,6 +181,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip libaio1t64 libnsl2
+          # Ubuntu 24.04 t64 rename: Oracle Instant Client needs libaio.so.1
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           sudo mkdir -p /opt/oracle/instantclient
           cd /opt/oracle/instantclient
           wget https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || echo "basiclite download failed"
