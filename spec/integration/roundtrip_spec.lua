@@ -30,11 +30,38 @@ local function U(...) return SQLBuilder.UPDATE(..., db.opts()) end
 local function I(...) return SQLBuilder.INSERT(..., db.opts()) end
 local function D(...) return SQLBuilder.DELETE(..., db.opts()) end
 
+local function deep_equal(x, y)
+  if type(x) ~= type(y) then
+    return false
+  end
+  if type(x) ~= "table" then
+    return x == y
+  end
+  for k, v in pairs(x) do
+    if not deep_equal(v, y[k]) then
+      return false
+    end
+  end
+  for k in pairs(y) do
+    if x[k] == nil then
+      return false
+    end
+  end
+  return true
+end
+
 local function eq_rows(a, b)
   assert.equal(#a, #b, "row count")
   for i = 1, #a do
     for k, v in pairs(a[i]) do
-      assert.equal(v, b[i][k], "col " .. k .. " of row " .. i)
+      local bv = b[i][k]
+      if type(v) == "table" and type(bv) == "table" then
+        -- pgmoon auto-decodes jsonb columns into Lua tables; mysql/sqlite
+        -- return the raw text - compare structurally in that case
+        assert(deep_equal(v, bv), "col " .. k .. " of row " .. i)
+      else
+        assert.equal(v, bv, "col " .. k .. " of row " .. i)
+      end
     end
   end
 end
