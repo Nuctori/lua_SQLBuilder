@@ -18,6 +18,18 @@ if not conn then
   return
 end
 
+-- dialects without a single-statement upsert skip the upsert tests
+local dialect_mod = require "lua_SQLBuilder.dialect"
+local upsert_supported = dialect_mod.resolve(conn.dialect).upsert ~= nil
+if not upsert_supported then
+  describe("integration upsert (skipped: " .. conn.dialect .. " has no upsert)", function()
+    it("no upsert support", function()
+      pending("dialect " .. conn.dialect .. " has no single-statement upsert")
+    end)
+  end)
+  return
+end
+
 local function I(...) return SQLBuilder.INSERT(..., db.opts()) end
 
 describe("integration upsert (" .. conn.dialect .. ")", function()
