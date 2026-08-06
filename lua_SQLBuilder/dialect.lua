@@ -127,9 +127,9 @@ end
 local function json_path_mssql(table_name, path)
   return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_mssql(table_name), path)
 end
--- Oracle 12c+: JSON_VALUE(column, '$.a[0].b')
+-- Oracle 12c+: JSON_VALUE(column, '$.a[0].b') — UPPERCASE identifiers
 local function json_path_oracle(table_name, path)
-  return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_ansi(table_name), path)
+  return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_oracle(table_name), path)
 end
 -- DuckDB: json_extract_string(column, '$.a[0].b') returns VARCHAR
 local function json_path_duckdb(table_name, path)
