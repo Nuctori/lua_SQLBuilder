@@ -175,13 +175,18 @@ jobs:
           cd /opt/oracle/instantclient
           wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || true
           wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-sdk-linux.x64-21.14.0.0.0dbru.zip || true
-          unzip -o '*.zip' || true
+          for z in *.zip; do [ -f "$z" ] && sudo unzip -o "$z"; done
+          ls -la /opt/oracle/instantclient/instantclient_21_14/ 2>/dev/null | head -5 || echo "OCI dir missing"
           sudo sh -c 'echo /opt/oracle/instantclient/instantclient_21_14 > /etc/ld.so.conf.d/oracle.conf'
           sudo ldconfig || true
           export LD_LIBRARY_PATH=/opt/oracle/instantclient/instantclient_21_14:$LD_LIBRARY_PATH
-          luarocks install luasql-oci8 \
-            OCI8_INCDIR=/opt/oracle/instantclient/instantclient_21_14/sdk/include \
-            OCI8_LIBDIR=/opt/oracle/instantclient/instantclient_21_14 || true
+          if [ -f /opt/oracle/instantclient/instantclient_21_14/sdk/include/oci.h ]; then
+            luarocks install luasql-oci8 \
+              OCI8_INCDIR=/opt/oracle/instantclient/instantclient_21_14/sdk/include \
+              OCI8_LIBDIR=/opt/oracle/instantclient/instantclient_21_14
+          else
+            echo "OCI SDK headers missing - skipping luasql-oci8 install"
+          fi
       - name: Run integration specs against Oracle
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:
