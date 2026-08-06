@@ -2,15 +2,16 @@ local class = require "lua_SQLBuilder.class"
 local HAVING = class("HAVING")
 local fmt = string.format
 
-function HAVING:ctor()
+function HAVING:ctor(dialect)
     self.conditions = {}
+    self._dialect = dialect
 end
 
 function HAVING:add(query, param)
     if type(param) == "string" then
         param = fmt("'%s'", param)
     end
-    self.conditions[#self.conditions + 1] = string.gsub(query, "?", param, 1)
+    self.conditions[#self.conditions + 1] = string.gsub(query, "?", function() return param end, 1)
 end
 
 function HAVING:to_sql()

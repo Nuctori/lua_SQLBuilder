@@ -2,9 +2,9 @@ local class = require "lua_SQLBuilder.class"
 local WHERE = class("WHERE")
 local fmt = string.format
 
-function WHERE:ctor()
+function WHERE:ctor(dialect)
     self.conditions = {}
-
+    self._dialect = dialect
 end
 
 function WHERE:add(query, param)
@@ -19,16 +19,16 @@ function WHERE:to_sql()
             if type(param) == "string" then
                 param = fmt("'%s'", param)
             elseif type(param) == "table" then
-                for i, v in ipairs(param) do
-                    if type(v) == "string" then
-                        param[i] = fmt("'%s'", v)
+                for i, pv in ipairs(param) do
+                    if type(pv) == "string" then
+                        param[i] = fmt("'%s'", pv)
                     end
                 end
                 param = fmt("(%s)", table.concat(param, ","))
             elseif type(param) == "userdata" then
                 param = "NULL"
             end
-            t_concat[#t_concat + 1] = string.gsub(query, "?", tostring(param), 1)
+            t_concat[#t_concat + 1] = string.gsub(query, "?", function() return tostring(param) end, 1)
         else
             t_concat[#t_concat + 1] = query
         end

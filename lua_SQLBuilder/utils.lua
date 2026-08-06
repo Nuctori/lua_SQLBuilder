@@ -2,7 +2,9 @@ local SQLUtils = {}
 local fmt = string.format
 local tsort = table.sort
 local tconcat = table.concat
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 local json = require "lua_SQLBuilder.json"
+local dialect_mod = require "lua_SQLBuilder.dialect"
 
 local escape_map = {
     ['\0'] = "\\0",
@@ -17,7 +19,14 @@ local escape_map = {
 }
 
 function SQLUtils.quote_to_str (sql)
-    return fmt("%s", string.gsub(sql, "[\0\b\n\r\t\26\\\'\"]", escape_map))
+    -- Loop-based escaping: a gsub pattern containing a NUL byte (\0) breaks
+    -- Lua 5.1's pattern parser (C-string scan stops at NUL).
+    local out = {}
+    for i = 1, #sql do
+        local c = sql:sub(i, i)
+        out[#out + 1] = escape_map[c] or c
+    end
+    return table.concat(out)
 end
 
 function SQLUtils.clear_table(t)
@@ -51,10 +60,32 @@ function SQLUtils.ORM_warpper(ormFunc)
             params[i] = param
         end
 
-        return ormFunc(table.unpack(params))
+        return ormFunc(unpack(params))
     end
 end
 
+--- Render a literal value for inline SQL (to_sql mode).
+-- Strings/JSON are single-quoted; NULLs and userdata become NULL.
+-- NOTE: does NOT escape yet — escaping is applied in phase 2.
+function SQLUtils.render_value(v)
+    if v == nil then
+        return "NULL"
+    end
+    local t = type(v)
+    if t == "string" then
+        return fmt("'%s'", v)
+    end
+    if t == "table" then
+        return fmt("'%s'", json.encode(v))
+    end
+    if t == "boolean" or t == "number" then
+        return tostring(v)
+    end
+    if t == "userdata" then
+        return "NULL"
+    end
+    error("unsupported value type: " .. t)
+end
 
 function SQLUtils.table_format (tab, sep, sorts)
     assert(type(tab) == 'table', "Invalid table.")
@@ -95,10 +126,6 @@ function SQLUtils.Make_Query(query)
     for idx, item in ipairs(list) do
         if type(item[2]) == "string" then
             list[idx] = fmt("`%s`='%s'", item[1], item[2])
-        elseif type(item[2]) == "boolean" then
-
-        else
-
         end
     end
     return table.concat(list, " AND ")
@@ -115,32 +142,33 @@ function SQLUtils.SortTable(t)
     return sortTable
 end
 
-
----comment 生成json查询语句
----@param query table    @用于匹配的模式
----@return boolean, string @是否成功, 错误信息
-function SQLUtils.Make_JsonQuery(tableName, query)
+---comment 生成json查询语句（按方言渲染 JSON 路径算子）
+---@param tableName string  JSON 列名
+---@param query table     @用于匹配的模式
+---@param dialect table|nil @方言配置（默认取模块默认）
+---@return table @{sql, param} 列表；boolean 分支暂返回纯字符串（见 known_bugs A3，phase 1 修复）
+function SQLUtils.Make_JsonQuery(tableName, query, dialect)
+    dialect = dialect or dialect_mod.resolve()
     local function func(k, v, fatherPath, funcs)
         if tonumber(k) then
             k = fmt([["%s"]], k)
         end
         local typeOfv = type(v)
         if typeOfv == "string" then
-          funcs[#funcs + 1] = {fmt("%s->>'$.%s' = '?'", tableName, fatherPath..k), v}
+            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, fatherPath .. k)), v }
         elseif typeOfv == "number" then
-          funcs[#funcs + 1] = {fmt("%s->>'$.%s' = ?", tableName, fatherPath..k), v}
+            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, fatherPath .. k)), tostring(v) }
         elseif typeOfv == "table" then
-          for subk, subv in pairs(v) do
-              local sqlStr = func(subk, subv, k..".", funcs)
-              if sqlStr then
-                  funcs[#funcs + 1] = sqlStr
-              end
-          end
+            for subk, subv in pairs(v) do
+                func(subk, subv, k .. ".", funcs)
+            end
         elseif typeOfv == "boolean" then
+            -- KNOWN BUG A3: returns a bare string; callers index it as a pair.
+            -- Fixed in phase 1 (see spec/unit/known_bugs_spec.lua).
             if v == true then
-                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NOT NULL",tableName, fatherPath..k)
+                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NOT NULL", tableName, fatherPath .. k)
             else
-                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NULL",tableName, fatherPath..k)
+                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NULL", tableName, fatherPath .. k)
             end
         end
     end

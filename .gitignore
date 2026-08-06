@@ -1,0 +1,20 @@
+# Lua
+*.rock
+luacov.*.out
+luacov.report.out
+luacov.stats.out
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Agent / tooling
+.pi/
+.pi-subagents/
+
+# Build artifacts
+build/
+dist/

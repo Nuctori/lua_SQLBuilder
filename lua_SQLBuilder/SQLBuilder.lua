@@ -1,5 +1,5 @@
-
 local class = require "lua_SQLBuilder.class"
+local dialect_mod = require "lua_SQLBuilder.dialect"
 local WHERE = require "lua_SQLBuilder.sql_comp.WHERE"
 local OR = require "lua_SQLBuilder.sql_comp.OR"
 local ORDER = require "lua_SQLBuilder.sql_comp.ORDER"
@@ -11,6 +11,7 @@ local LIMIT = require "lua_SQLBuilder.sql_comp.LIMIT"
 local SQLBuilder = class("SQLBuilder")
 
 local fmt = string.format
+local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 local function MakeSql(op, sql)
     if sql and sql ~= "" then
@@ -21,19 +22,26 @@ local function MakeSql(op, sql)
 end
 
 function SQLBuilder:ctor(...)
-    self:init(...)
+    local tableOperator = ...
+    local opts = select(2, ...)
+    self:init(tableOperator, opts)
 end
 
-function SQLBuilder:init(TableOperator)
+function SQLBuilder:init(TableOperator, opts)
     self._tableOperator = TableOperator
-    self._where = WHERE.new()
-    self._or = OR.new()
-    self._order = ORDER.new()
-    self._group = GROUP.new()
-    self._having = HAVING.new()
-    self._limit = LIMIT.new()
+    self._dialect = dialect_mod.resolve(opts and opts.dialect)
+    self._where = WHERE.new(self._dialect)
+    self._or = OR.new(self._dialect)
+    self._order = ORDER.new(self._dialect)
+    self._group = GROUP.new(self._dialect)
+    self._having = HAVING.new(self._dialect)
+    self._limit = LIMIT.new(self._dialect)
     self._forUpdate = false
     self._procedure = ""
+end
+
+function SQLBuilder:Dialect()
+    return self._dialect.name
 end
 
 function SQLBuilder:TableOperator()
@@ -120,14 +128,14 @@ function SQLBuilder:to_prepare()
     local params = {}
     local headSql, params1 = self:PrepareTableOperator()
     local whereSql, params2 = self._where:to_prepare()
-    for i, v in ipairs(params1 or {}) do
+    for _, v in ipairs(params1 or {}) do
         params[#params + 1] = v
     end
-    for i, v in ipairs(params2 or {}) do
+    for _, v in ipairs(params2 or {}) do
         params[#params + 1] = v
     end
     local orSql, params3 = self._or:to_prepare()
-    for i, v in ipairs(params3 or {}) do
+    for _, v in ipairs(params3 or {}) do
         params[#params + 1] = v
     end
     local sql = {
@@ -141,7 +149,7 @@ function SQLBuilder:to_prepare()
         MakeSql("PROCEDURE", self._procedure),
         self._forUpdate and " FOR UPDATE" or "",
     }
-    return table.concat(sql, ""), table.unpack(params)
+    return table.concat(sql, ""), unpack(params)
 end
 
 return SQLBuilder

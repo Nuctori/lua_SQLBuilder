@@ -7,20 +7,27 @@ local utils = require "lua_SQLBuilder.utils"
 local fmt = string.format
 -- SELECT():FIELD():FROM():QUERY():JSON_QUERY():PAGE():PER()
 function SELECT:ctor(...)
-    self.fileds = {table.unpack({...})}
+    local fields = { ... }
+    local opts
+    if type(fields[#fields]) == "table" then
+        opts = fields[#fields]
+        fields[#fields] = nil
+    end
+    self.fields = fields
+    self.fileds = self.fields -- legacy alias (typo kept for compatibility)
     self.froms = {}
     self.page = nil
     self.per = nil
-    self.init(self)
+    self.init(self, nil, opts)
 end
 
 function SELECT:TableOperator()
-    return fmt("SELECT %s FROM %s", table.concat(self.fileds, ", "), table.concat(self.froms, ", "))
+    return fmt("SELECT %s FROM %s", table.concat(self.fields, ", "), table.concat(self.froms, ", "))
 end
 
 function SELECT:FIELD(...)
     for _, field in ipairs({...}) do
-        self.fileds[#self.fileds + 1] = field
+        self.fields[#self.fields + 1] = field
     end
     return self
 end
@@ -32,28 +39,32 @@ function SELECT:FROM(...)
     return self
 end
 
-function SELECT:QUERY(queryTable)
-    local sortTable = {}
-    for k, v in pairs(queryTable) do
-        sortTable[#sortTable + 1] = {k,v}
+local function sort_keys(t)
+    local keys = {}
+    for k in pairs(t) do
+        keys[#keys + 1] = k
     end
-    table.sort(sortTable, function(a, b)
-        return tostring(type(a)) < tostring(type(b))
-    end)
-    for _, data in pairs(sortTable) do
-        local field, query = data[1], data[2]
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    return keys
+end
+
+function SELECT:QUERY(queryTable)
+    local dialect = self._dialect
+    local quote = dialect.quote_ident
+    for _, field in ipairs(sort_keys(queryTable)) do
+        local query = queryTable[field]
         if type(query) == "table" then -- json 查询
-            local jsonSQLs = utils.Make_JsonQuery(field, query)
-            for i, jsonSQL in ipairs(jsonSQLs) do
-                local field, query = jsonSQL[1], jsonSQL[2]
-                self:WHERE(field, query)
+            local jsonSQLs = utils.Make_JsonQuery(field, query, dialect)
+            for _, jsonSQL in ipairs(jsonSQLs) do
+                local jfield, jquery = jsonSQL[1], jsonSQL[2]
+                self:WHERE(jfield, jquery)
             end
-        elseif type(query) == "userdata"  then
-            self:WHERE(fmt("`%s` is NULL", field))
+        elseif type(query) == "userdata" then
+            self:WHERE(fmt("%s is NULL", quote(field)))
         elseif type(query) == "boolean" then
-            self:WHERE(fmt("`%s` = ?", field), tostring(query))
+            self:WHERE(fmt("%s = ?", quote(field)), tostring(query))
         else
-            self:WHERE(fmt("`%s` = ?", field), query)
+            self:WHERE(fmt("%s = ?", quote(field)), query)
         end
     end
     return self

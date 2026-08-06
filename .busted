@@ -1,0 +1,8 @@
+-- Busted configuration (must return a table).
+-- Integration specs are gated by the LUA_SQLBUILDER_DB env var
+-- (see spec/helpers/db.lua), not by busted tags.
+
+return {
+  output = "utfTerminal",
+  verbose = false,
+}
