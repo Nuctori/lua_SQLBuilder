@@ -29,8 +29,9 @@ local sql = sqlbuilder.SQLBuilder("SELECT * FROM user")
   syntax and string escaping adapt automatically.
 - **Deterministic**: table-style inputs are key-sorted; repeated renders are
   byte-identical (locked by cross-audit invariants).
-- **Verified**: CI runs the same suite against real MySQL 8, PostgreSQL 16 and
-  SQLite on Lua 5.1 / 5.2 / 5.3 / 5.4 / LuaJIT.
+- **Verified**: CI runs the same integration suite against six real databases
+  — MySQL 8, PostgreSQL 16, SQLite, DuckDB, ClickHouse (over HTTP) and Oracle
+  23c free — on Lua 5.1 / 5.2 / 5.3 / 5.4 / LuaJIT.
 
 ## Installation
 

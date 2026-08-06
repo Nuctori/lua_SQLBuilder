@@ -19,7 +19,7 @@ local sql = sqlbuilder.SQLBuilder("SELECT * FROM user")
 - **两种输出模式**：`to_sql()` 内联渲染（含方言感知的字符串转义）；`to_prepare()` 返回占位符 SQL 与绑定参数，交给驱动执行，天然防注入。
 - **方言即配置**：默认 `ansi`（标准 SQL），声明方言后才启用对应特性（反引号、`->>`、`ON DUPLICATE` 等）。内置预设：ansi / mysql / mariadb / postgres / sqlite / mssql。
 - **确定性输出**：表型输入按键排序；重复渲染字节级一致（由交叉审计不变量锁定）。
-- **真实验证**：CI 在真实 MySQL 8、PostgreSQL 16、SQLite 上，于 Lua 5.1 / 5.2 / 5.3 / 5.4 / LuaJIT 全矩阵跑同一套测试。
+- **真实验证**：CI 对六个真实数据库跑同一套集成测试——MySQL 8、PostgreSQL 16、SQLite、DuckDB、ClickHouse（HTTP 接口）与 Oracle 23c free——覆盖 Lua 5.1 / 5.2 / 5.3 / 5.4 / LuaJIT。
 
 ## 安装
 
