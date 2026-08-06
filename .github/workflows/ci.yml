@@ -183,19 +183,21 @@ jobs:
           sudo apt-get install -y wget unzip
           sudo mkdir -p /opt/oracle/instantclient
           cd /opt/oracle/instantclient
-          wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || true
-          wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-sdk-linux.x64-21.14.0.0.0dbru.zip || true
+          wget https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || echo "basiclite download failed"
+          wget https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-sdk-linux.x64-21.14.0.0.0dbru.zip || echo "sdk download failed"
+          ls -la *.zip || echo "no zip files"
           for z in *.zip; do [ -f "$z" ] && sudo unzip -o "$z"; done
-          ls -la /opt/oracle/instantclient/instantclient_21_14/ 2>/dev/null | head -5 || echo "OCI dir missing"
-          sudo sh -c 'echo /opt/oracle/instantclient/instantclient_21_14 > /etc/ld.so.conf.d/oracle.conf'
-          sudo ldconfig || true
-          export LD_LIBRARY_PATH=/opt/oracle/instantclient/instantclient_21_14:$LD_LIBRARY_PATH
-          if [ -f /opt/oracle/instantclient/instantclient_21_14/sdk/include/oci.h ]; then
+          IC_DIR=$(ls -d /opt/oracle/instantclient/instantclient_* 2>/dev/null | head -1)
+          echo "IC_DIR=$IC_DIR"
+          if [ -n "$IC_DIR" ] && [ -f "$IC_DIR/sdk/include/oci.h" ]; then
+            sudo sh -c "echo $IC_DIR > /etc/ld.so.conf.d/oracle.conf"
+            sudo ldconfig
             luarocks install luasql-oci8 \
-              OCI8_INCDIR=/opt/oracle/instantclient/instantclient_21_14/sdk/include \
-              OCI8_LIBDIR=/opt/oracle/instantclient/instantclient_21_14
+              OCI8_INCDIR="$IC_DIR/sdk/include" \
+              OCI8_LIBDIR="$IC_DIR" || echo "luasql-oci8 build failed"
           else
-            echo "OCI SDK headers missing - skipping luasql-oci8 install"
+            echo "OCI SDK headers missing (dir=$IC_DIR)"
+            ls -la "$IC_DIR" 2>/dev/null | head -8 || echo "no instantclient dir"
           fi
       - name: Run integration specs against Oracle
         run: busted --helper=spec/helpers/init.lua spec/integration
