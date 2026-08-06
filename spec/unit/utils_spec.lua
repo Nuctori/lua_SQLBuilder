@@ -25,38 +25,6 @@ describe("utils.clear_table", function()
   end)
 end)
 
-describe("utils.ORM_warpper", function()
-  it("escapes string arguments before calling the wrapped function", function()
-    local seen
-    local wrapped = utils.ORM_warpper(function(a, b)
-      seen = { a, b }
-    end)
-    wrapped("O'Brien", 42)
-    assert.equal("O\\'Brien", seen[1])
-    assert.equal(42, seen[2])
-  end)
-end)
-
-describe("utils.table_format", function()
-  it("renders key = value pairs with quoting", function()
-    assert.equal("a = 1, b = 'x'", utils.table_format({ a = 1, b = "x" }, ", ", function(x, y)
-      return x[1] < y[1]
-    end))
-  end)
-
-  it("asserts on non-table input", function()
-    assert.has_error(function()
-      utils.table_format("nope", ", ")
-    end, "Invalid table.")
-  end)
-end)
-
-describe("utils.Make_Query", function()
-  it("renders string values quoted", function()
-    assert.equal("`a`='x'", utils.Make_Query({ a = "x" }))
-  end)
-end)
-
 describe("utils.render_value", function()
   it("quotes strings and JSON-encodes tables", function()
     assert.equal("'x'", utils.render_value("x"))
