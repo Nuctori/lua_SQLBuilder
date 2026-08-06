@@ -95,7 +95,6 @@ end)
 -- specific misbehavior as pending; fix = flip to green.
 describe("audit-discovered bugs (pending)", function()
   it("NB-1: '%' in a string param crashes to_sql (gsub replacement escaping)", function()
-    pending("NB-1 - fixed in phase 1 (unified value renderer)")
     local sql = SQLBuilder("SELECT * FROM user"):WHERE("name LIKE ?", "50%"):to_sql()
     assert.equal("SELECT * FROM user WHERE (name LIKE '50%')", sql)
   end)

@@ -11,7 +11,7 @@ function HAVING:add(query, param)
     if type(param) == "string" then
         param = fmt("'%s'", param)
     end
-    self.conditions[#self.conditions + 1] = string.gsub(query, "?", param, 1)
+    self.conditions[#self.conditions + 1] = string.gsub(query, "?", function() return param end, 1)
 end
 
 function HAVING:to_sql()

@@ -36,7 +36,7 @@ function UPDATE:TableOperator()
             if type(val) == "userdata" then
                 val = "NULL"
             end
-            sets[#sets + 1] = string.gsub(field, "?", tostring(val), 1)
+            sets[#sets + 1] = string.gsub(field, "?", function() return tostring(val) end, 1)
         else
             sets[#sets + 1] = field
         end

@@ -28,7 +28,7 @@ function WHERE:to_sql()
             elseif type(param) == "userdata" then
                 param = "NULL"
             end
-            t_concat[#t_concat + 1] = string.gsub(query, "?", tostring(param), 1)
+            t_concat[#t_concat + 1] = string.gsub(query, "?", function() return tostring(param) end, 1)
         else
             t_concat[#t_concat + 1] = query
         end
