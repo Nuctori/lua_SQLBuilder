@@ -38,6 +38,11 @@ end
 local function quote_ident_ansi(name)
   return fmt('"%s"', name:gsub('"', '""'))
 end
+-- Oracle: unquoted DDL identifiers are stored UPPERCASE; quoted references
+-- are case-sensitive, so we emit uppercase to match the stored names.
+local function quote_ident_oracle(name)
+  return fmt('"%s"', name:upper():gsub('"', '""'))
+end
 local function quote_ident_mssql(name)
   return fmt("[%s]", name:gsub("]", "]]"))
 end
@@ -215,7 +220,7 @@ local dialects = {
   },
   oracle = {
     name = "oracle",
-    quote_ident = quote_ident_ansi,
+    quote_ident = quote_ident_oracle,
     json_path = json_path_oracle,
     escape_string = escape_ansi,
     render_limit = render_limit_mssql, -- Oracle 12c+ OFFSET/FETCH
