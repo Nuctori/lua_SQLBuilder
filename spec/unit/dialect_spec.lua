@@ -8,9 +8,12 @@ local sqlbuilder = require "lua_SQLBuilder"
 local dialect_mod = require "lua_SQLBuilder.dialect"
 
 describe("dialect", function()
-  it("defaults to mysql", function()
-    assert.equal("mysql", sqlbuilder.get_default_dialect())
-    assert.equal("mysql", dialect_mod.resolve(nil).name)
+  it("defaults to ansi (standard SQL, no dialect-specific features)", function()
+    assert.equal("ansi", sqlbuilder.get_default_dialect())
+    assert.equal("ansi", dialect_mod.resolve(nil).name)
+    -- ansi: double-quoted identifiers, no backticks
+    local sql = sqlbuilder.SELECT("*"):FROM("user"):QUERY({ id = 1 }):to_sql()
+    assert.equal('SELECT * FROM user WHERE ("id" = 1)', sql)
   end)
 
   it("set_default_dialect affects later builders", function()
@@ -24,7 +27,7 @@ describe("dialect", function()
   it("resolve rejects unknown dialects", function()
     assert.has_error(function()
       dialect_mod.resolve("oracle")
-    end, "unknown dialect: oracle (supported: mysql, postgres, sqlite)")
+    end, "unknown dialect: oracle (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql)")
   end)
 
   it("per-instance opts override the module default", function()

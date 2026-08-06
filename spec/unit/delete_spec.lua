@@ -7,12 +7,12 @@ local DELETE = require "lua_SQLBuilder".DELETE
 
 describe("DELETE", function()
   it("QUERY builds a deterministic WHERE", function()
-    local sql = DELETE("user"):QUERY({ id = 1, status = 0 }):to_sql()
+    local sql = DELETE("user", { dialect = "mysql" }):QUERY({ id = 1, status = 0 }):to_sql()
     assert.equal("DELETE FROM user WHERE (`id` = 1 AND `status` = 0)", sql)
   end)
 
   it("prepares WHERE with params", function()
-    local sql, id = DELETE("user"):WHERE("id = ?", 1):to_prepare()
+    local sql, id = DELETE("user", { dialect = "mysql" }):WHERE("id = ?", 1):to_prepare()
     assert.equal("DELETE FROM user WHERE (id = ?)", sql)
     assert.equal(1, id)
   end)

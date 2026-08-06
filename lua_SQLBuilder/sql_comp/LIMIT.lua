@@ -1,6 +1,5 @@
 local class = require "lua_SQLBuilder.class"
 local LIMIT = class("LIMIT")
-local fmt = string.format
 
 function LIMIT:ctor(dialect)
     self.limit = {}
@@ -20,18 +19,14 @@ function LIMIT:add(p1, p2)
     self.limit = { offset, count }
 end
 
--- Portable rendering: "count OFFSET offset" (offset 0 → just "count").
--- Supported by MySQL >= 4.0.1, PostgreSQL, and SQLite; the MySQL-only
--- "offset, count" comma form is deliberately not used.
+-- Rendering is dialect-specific ("count OFFSET offset" for mysql/pg/sqlite,
+-- "OFFSET n ROWS FETCH NEXT m ROWS ONLY" for SQL Server).
 function LIMIT:to_sql()
     local offset, count = self.limit[1], self.limit[2]
     if count == nil then
         return ""
     end
-    if offset == nil or offset == "" or tonumber(offset) == 0 then
-        return tostring(count)
-    end
-    return fmt("%s OFFSET %s", count, offset)
+    return self._dialect.render_limit(offset, count)
 end
 
 return LIMIT

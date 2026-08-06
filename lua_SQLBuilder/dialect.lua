@@ -1,19 +1,47 @@
--- Dialect definitions: the small set of SQL differences between supported
--- databases (identifier quoting, JSON path operator, upsert syntax).
+-- Dialect definitions as CONFIGURATION.
 --
--- The library defaults to MySQL; pass { dialect = "postgres" | "sqlite" }
--- as the trailing options argument to any builder, or call
--- `sqlbuilder.set_default_dialect("postgres")` once at startup.
+-- The default dialect is ANSI standard SQL: no dialect-specific features are
+-- emitted unless a dialect is declared. Declare one per builder (trailing
+-- options table) or set the module default:
+--
+--   sqlbuilder.set_default_dialect("mysql")             -- module-wide
+--   SELECT("*", { dialect = "postgres" })               -- per-instance
+--
+-- Dialects are plain config tables; the built-in presets are conveniences
+-- for the databases verified in CI. To use a database without a preset,
+-- copy a close preset and adjust the fields:
+--
+--   local dialect = require "lua_SQLBuilder.dialect"
+--   dialect.dialects.oracle = dialect.dialects.ansi  -- then tweak fields
+--
+-- Fields:
+--   quote_ident       fn(name) -> quoted identifier
+--   json_path         fn(table_name, path) -> JSON extract expression
+--   escape_string     fn(s) -> string literal body (without quotes)
+--   render_limit      fn(offset, count) -> LIMIT fragment
+--   upsert            { keyword, needs_conflict, ref } or nil (unsupported)
 
 local fmt = string.format
 
 local M = {}
 
-local DEFAULT = "mysql"
+local DEFAULT = "ansi"
 M.default = DEFAULT
 
--- MySQL string escaping (backslash style). Inside single-quoted literals
--- double quotes are literal and need no escaping.
+-------------------------------------------------------------------------------
+-- field defaults
+-------------------------------------------------------------------------------
+
+local function quote_ident_mysql(name)
+  return fmt("`%s`", name)
+end
+local function quote_ident_ansi(name)
+  return fmt('"%s"', name)
+end
+local function quote_ident_mssql(name)
+  return fmt("[%s]", name)
+end
+
 local mysql_escape_map = {
   ['\0'] = "\\0",
   ['\b'] = "\\b",
@@ -24,7 +52,6 @@ local mysql_escape_map = {
   ['\\'] = "\\\\",
   ["'"] = "\\'",
 }
-
 local function escape_mysql(s)
   local out = {}
   for i = 1, #s do
@@ -33,87 +60,144 @@ local function escape_mysql(s)
   end
   return table.concat(out)
 end
-
--- ANSI string escaping (PostgreSQL with standard_conforming_strings=on,
--- SQLite): single quotes are doubled, backslash is literal.
+-- ANSI standard (PostgreSQL with standard_conforming_strings=on, SQLite,
+-- SQL Server): single quotes are doubled, backslash is literal.
 local function escape_ansi(s)
   return s:gsub("'", "''")
 end
 
-local function quote_ident_mysql(name)
-  return fmt("`%s`", name)
+-- "count OFFSET offset" (offset 0 -> just "count"); ANSI + MySQL >= 4.0.1,
+-- MariaDB, PostgreSQL and SQLite.
+local function render_limit_ansi(offset, count)
+  if offset == nil or offset == "" or tonumber(offset) == 0 then
+    return tostring(count)
+  end
+  return fmt("%s OFFSET %s", count, offset)
+end
+-- SQL Server: OFFSET/FETCH after ORDER BY.
+local function render_limit_mssql(offset, count)
+  local offset_n = (offset == nil or offset == "" or tonumber(offset) == 0) and 0 or offset
+  return fmt("OFFSET %s ROWS FETCH NEXT %s ROWS ONLY", offset_n, count)
 end
 
-local function quote_ident_ansi(name)
-  return fmt('"%s"', name)
-end
-
--- JSON scalar-equality expressions. Params are always bound/rendered as their
--- string form (see utils.Make_JsonQuery) so equality is portable: the three
--- databases all compare a JSON scalar to its text representation.
+-- Path segments: text keys arrive as "a" / "b", array indices as "[0]".
+-- MySQL/MariaDB accept the "$.a[0].b" JSON-path spelling with backticks.
 local function json_path_mysql(table_name, path)
   return fmt("%s->>'$.%s'", quote_ident_mysql(table_name), path)
 end
-
+-- ANSI preset: same JSON-path spelling, double-quoted identifiers.
+local function json_path_jsonpath(table_name, path)
+  return fmt("%s->>'$.%s'", quote_ident_ansi(table_name), path)
+end
 local function json_path_sqlite(table_name, path)
-  -- json_extract works on every sqlite >= 3.9. CAST AS TEXT makes equality
-  -- with the string form portable: sqlite does not apply affinity to
-  -- expression-to-expression comparisons, so json_extract(...) = '5'
-  -- (INTEGER vs TEXT) would never match.
+  -- json_extract works on every sqlite >= 3.9; CAST AS TEXT makes equality
+  -- with the string form portable (sqlite applies no affinity between
+  -- expression results).
   return fmt("CAST(json_extract(%s, '$.%s') AS TEXT)", quote_ident_ansi(table_name), path)
 end
-
--- PostgreSQL's ->> does not accept the "$.a.b" path syntax; translate the
--- path into an operator chain: json->'a'->'b'->>'c'.
+-- PostgreSQL ->> does not accept "$.a.b"; translate to an operator chain:
+-- json->'a'->0->>'b' (text keys ->'k', array indices ->N).
 local function json_path_postgres(table_name, path)
   local parts = {}
   for part in path:gmatch("[^.]+") do
-    part = part:gsub('^"(.*)"$', "%1")
     parts[#parts + 1] = part
   end
   local expr = quote_ident_ansi(table_name)
   for i = 1, #parts - 1 do
-    expr = fmt("%s->'%s'", expr, parts[i])
+    local idx = parts[i]:match("^%[(%d+)%]$")
+    if idx then
+      expr = fmt("%s->%s", expr, idx)
+    else
+      expr = fmt("%s->'%s'", expr, parts[i])
+    end
   end
-  return fmt("%s->>'%s'", expr, parts[#parts])
+  local last = parts[#parts]
+  local last_idx = last:match("^%[(%d+)%]$")
+  if last_idx then
+    return fmt("%s->>%s", expr, last_idx)
+  end
+  return fmt("%s->>'%s'", expr, last)
+end
+-- SQL Server: JSON_VALUE(column, '$.a[0].b')
+local function json_path_mssql(table_name, path)
+  return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_mssql(table_name), path)
 end
 
+local upsert_mysql = {
+  keyword = "ON DUPLICATE KEY UPDATE",
+  needs_conflict = false,
+}
+local upsert_pg = {
+  keyword = "ON CONFLICT DO UPDATE",
+  needs_conflict = true,
+  ref = "EXCLUDED",
+}
+local upsert_sqlite = {
+  keyword = "ON CONFLICT DO UPDATE",
+  needs_conflict = true,
+  ref = "excluded",
+}
+
+-------------------------------------------------------------------------------
+-- presets (plain configuration tables)
+-------------------------------------------------------------------------------
+
 local dialects = {
+  ansi = {
+    name = "ansi",
+    quote_ident = quote_ident_ansi,
+    json_path = json_path_jsonpath,
+    escape_string = escape_ansi,
+    render_limit = render_limit_ansi,
+    upsert = nil, -- no single-statement upsert in ANSI
+  },
   mysql = {
     name = "mysql",
     quote_ident = quote_ident_mysql,
     json_path = json_path_mysql,
     escape_string = escape_mysql,
-    upsert = {
-      keyword = "ON DUPLICATE KEY UPDATE",
-      needs_conflict = false,
-    },
+    render_limit = render_limit_ansi,
+    upsert = upsert_mysql,
+  },
+  mariadb = {
+    name = "mariadb",
+    quote_ident = quote_ident_mysql,
+    json_path = json_path_mysql,
+    escape_string = escape_mysql,
+    render_limit = render_limit_ansi,
+    upsert = upsert_mysql,
   },
   postgres = {
     name = "postgres",
     quote_ident = quote_ident_ansi,
     json_path = json_path_postgres,
     escape_string = escape_ansi,
-    upsert = {
-      keyword = "ON CONFLICT DO UPDATE",
-      needs_conflict = true,
-      ref = "EXCLUDED",
-    },
+    render_limit = render_limit_ansi,
+    upsert = upsert_pg,
   },
   sqlite = {
     name = "sqlite",
     quote_ident = quote_ident_ansi,
     json_path = json_path_sqlite,
     escape_string = escape_ansi,
-    upsert = {
-      keyword = "ON CONFLICT DO UPDATE",
-      needs_conflict = true,
-      ref = "excluded",
-    },
+    render_limit = render_limit_ansi,
+    upsert = upsert_sqlite,
+  },
+  mssql = {
+    name = "mssql",
+    quote_ident = quote_ident_mssql,
+    json_path = json_path_mssql,
+    escape_string = escape_ansi,
+    render_limit = render_limit_mssql,
+    upsert = nil,
   },
 }
 
 M.dialects = dialects
+
+-------------------------------------------------------------------------------
+-- resolution
+-------------------------------------------------------------------------------
 
 local default_name = DEFAULT
 
@@ -125,7 +209,7 @@ function M.resolve(name)
   local dialect = dialects[name]
   if not dialect then
     error("unknown dialect: " .. tostring(name) ..
-      " (supported: mysql, postgres, sqlite)", 2)
+      " (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql)", 2)
   end
   return dialect
 end

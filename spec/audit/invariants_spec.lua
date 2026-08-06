@@ -10,7 +10,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local SQLBuilder = require "lua_SQLBuilder"
 
-local DIALECTS = { "mysql", "postgres", "sqlite" }
+local DIALECTS = { "mysql", "mariadb", "postgres", "sqlite", "mssql", "ansi" }
 
 -- One representative builder per public API, bound to a dialect.
 local function make_builder(api, dialect)
@@ -148,12 +148,12 @@ end)
 
 describe("audit: escaping round-trip", function()
   it("prepare mode keeps quotes out of the SQL (driver escapes)", function()
-    local sql = SQLBuilder.INSERT("user"):COLS("id", "name"):VALUES({ 1, "O'Brien" }):to_prepare()
+    local sql = SQLBuilder.INSERT("user", { dialect = "mysql" }):COLS("id", "name"):VALUES({ 1, "O'Brien" }):to_prepare()
     assert.equal("INSERT INTO user (`id`, `name`) VALUES (?, ?)", sql)
   end)
 
-  it("B1: to_sql inline mode escapes string values", function()
+  it("B1: to_sql inline mode escapes string values (ANSI default)", function()
     local sql = SQLBuilder.SQLBuilder("SELECT * FROM user"):WHERE("name = ?", "O'Brien"):to_sql()
-    assert.equal("SELECT * FROM user WHERE (name = 'O\\'Brien')", sql)
+    assert.equal("SELECT * FROM user WHERE (name = 'O''Brien')", sql)
   end)
 end)

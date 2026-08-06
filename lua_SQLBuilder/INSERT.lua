@@ -64,9 +64,13 @@ function INSERT:__renderUpsert()
         return ""
     end
     local dialect = self._dialect
+    local upsert = dialect.upsert
+    if not upsert then
+        error("dialect '" .. dialect.name .. "' has no upsert support (use mysql/mariadb/postgres/sqlite)", 2)
+    end
     local quote = dialect.quote_ident
     local keys = sort_keys(self.update)
-    if dialect.upsert.needs_conflict then
+    if upsert.needs_conflict then
         local conflict = self.conflictCols
         assert(conflict ~= nil,
             "dialect '" .. dialect.name .. "' requires conflict target columns (pass them to ON_DUPLICATE_KEY_UPDATE)")

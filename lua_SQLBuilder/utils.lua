@@ -77,14 +77,17 @@ end
 function SQLUtils.Make_JsonQuery(tableName, query, dialect)
     dialect = dialect or dialect_mod.resolve()
     local function func(k, v, fatherPath, funcs)
+        -- 数字键是数组下标（JSON 数组），渲染为 [N] 段
+        local segment = k
         if tonumber(k) then
-            k = fmt([["%s"]], k)
+            segment = fmt("[%d]", tonumber(k))
         end
+        local path = fatherPath .. segment
         local typeOfv = type(v)
         if typeOfv == "string" then
-            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, fatherPath .. k)), v }
+            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, path)), v }
         elseif typeOfv == "number" then
-            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, fatherPath .. k)), tostring(v) }
+            funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, path)), tostring(v) }
         elseif typeOfv == "table" then
             local keys = {}
             for subk in pairs(v) do
@@ -92,11 +95,11 @@ function SQLUtils.Make_JsonQuery(tableName, query, dialect)
             end
             table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
             for _, subk in ipairs(keys) do
-                func(subk, v[subk], k .. ".", funcs)
+                func(subk, v[subk], path .. ".", funcs)
             end
         elseif typeOfv == "boolean" then
             -- 方言感知的 IS (NOT) NULL；返回 {sql} 对（无参数）
-            local expr = dialect.json_path(tableName, fatherPath .. k)
+            local expr = dialect.json_path(tableName, path)
             if v then
                 funcs[#funcs + 1] = { fmt("%s IS NOT NULL", expr) }
             else

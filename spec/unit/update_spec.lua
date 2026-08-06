@@ -7,17 +7,17 @@ local UPDATE = require "lua_SQLBuilder".UPDATE
 
 describe("UPDATE", function()
   it("SET table mode sorts keys for deterministic output", function()
-    local sql = UPDATE("user"):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1):to_sql()
+    local sql = UPDATE("user", { dialect = "mysql" }):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1):to_sql()
     assert.equal("UPDATE user SET `score` = 100, `status` = 'pass' WHERE (id = 1)", sql)
   end)
 
   it("SET string mode replaces the placeholder", function()
-    local sql = UPDATE("user"):SET("score = score + ?", 1):WHERE("id = ?", 1):to_sql()
+    local sql = UPDATE("user", { dialect = "mysql" }):SET("score = score + ?", 1):WHERE("id = ?", 1):to_sql()
     assert.equal("UPDATE user SET score = score + 1 WHERE (id = 1)", sql)
   end)
 
   it("prepares table-mode SET with sorted params", function()
-    local sql, score, status, id = UPDATE("user"):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1):to_prepare()
+    local sql, score, status, id = UPDATE("user", { dialect = "mysql" }):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1):to_prepare()
     assert.equal("UPDATE user SET `score` = ?, `status` = ? WHERE (id = ?)", sql)
     assert.equal(100, score)
     assert.equal("pass", status)

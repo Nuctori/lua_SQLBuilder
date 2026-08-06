@@ -18,7 +18,7 @@ describe("production patterns", function()
   end)
 
   it("grass_group.lua: SELECT with QUERY on chapter", function()
-    local sql = SQLBuilder.SELECT("*")
+    local sql = SQLBuilder.SELECT("*", { dialect = "mysql" })
       :FROM("chapter")
       :QUERY({ book_id = 1, status = 1 })
       :to_sql()
@@ -26,7 +26,7 @@ describe("production patterns", function()
   end)
 
   it("grass.lua / grass2.lua: INSERT DATA", function()
-    local sql = SQLBuilder.INSERT("like"):DATA({
+    local sql = SQLBuilder.INSERT("like", { dialect = "mysql" }):DATA({
       user_id = 1,
       like = 1,
     }):to_sql()
@@ -35,7 +35,7 @@ describe("production patterns", function()
 
   it("curd.lua: generic CRUD upsert via DATA + ON_DUPLICATE", function()
     local args = { user_id = 1, like = 1 }
-    local sql = SQLBuilder.INSERT("like")
+    local sql = SQLBuilder.INSERT("like", { dialect = "mysql" })
       :DATA(args)
       :ON_DUPLICATE_KEY_UPDATE(args)
       :to_sql()
@@ -45,12 +45,12 @@ describe("production patterns", function()
   end)
 
   it("curd.lua: DELETE via QUERY", function()
-    local sql = SQLBuilder.DELETE("user"):QUERY({ id = 1 }):to_sql()
+    local sql = SQLBuilder.DELETE("user", { dialect = "mysql" }):QUERY({ id = 1 }):to_sql()
     assert.equal("DELETE FROM user WHERE (`id` = 1)", sql)
   end)
 
   it("init.lua demo: raw query strings pass through (unsafe by design, phase 2 adds escaping)", function()
-    local sql = SQLBuilder.SELECT("*"):FROM("AAA"):QUERY({ a = 1 }):WHERE("' or 1='1"):to_sql()
+    local sql = SQLBuilder.SELECT("*", { dialect = "mysql" }):FROM("AAA"):QUERY({ a = 1 }):WHERE("' or 1='1"):to_sql()
     assert.equal("SELECT * FROM AAA WHERE (`a` = 1 AND ' or 1='1)", sql)
   end)
 end)

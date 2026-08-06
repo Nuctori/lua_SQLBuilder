@@ -17,7 +17,7 @@ describe("regressions from the bug list", function()
   -- FIXED in 0b (Make_JsonQuery dialect refactor): JSON string params bind
   -- as real placeholders, not the literal "'?'".
   it("A2: JSON string params bind as real placeholders in prepare mode", function()
-    local sql, foo = SELECT("*"):FROM("user"):QUERY({ json = { foo = "bar" } }):to_prepare()
+    local sql, foo = SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ json = { foo = "bar" } }):to_prepare()
     assert.equal("SELECT * FROM user WHERE (`json`->>'$.foo' = ?)", sql)
     assert.equal("bar", foo)
   end)
@@ -25,7 +25,7 @@ describe("regressions from the bug list", function()
   -- FIXED in 0b (copy-on-render): repeated to_sql() calls produce identical
   -- output and never mutate the caller's tables.
   it("A9: INSERT output is idempotent across to_sql calls", function()
-    local builder = INSERT("user"):COLS("id", "name"):VALUES({ 1, "name1" })
+    local builder = INSERT("user", { dialect = "mysql" }):COLS("id", "name"):VALUES({ 1, "name1" })
     local first = builder:to_sql()
     local second = builder:to_sql()
     assert.equal(first, second)
@@ -46,12 +46,12 @@ describe("known bugs (pending)", function()
   end)
 
   it("A3: JSON boolean values render IS (NOT) NULL via the dialect operator", function()
-    local sql = SELECT("*"):FROM("user"):QUERY({ json = { flag = true } }):to_sql()
+    local sql = SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ json = { flag = true } }):to_sql()
     assert.equal("SELECT * FROM user WHERE (`json`->>'$.flag' IS NOT NULL)", sql)
   end)
 
   it("A4: boolean QUERY values are rendered as true/false", function()
-    local sql = SELECT("*"):FROM("user"):QUERY({ validate = true }):to_sql()
+    local sql = SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ validate = true }):to_sql()
     assert.equal("SELECT * FROM user WHERE (`validate` = true)", sql)
   end)
 
@@ -66,14 +66,14 @@ describe("known bugs (pending)", function()
   end)
 
   it("A20: UPDATE table-mode prepare works with quoted SET keys", function()
-    local sql, score, id = UPDATE("user"):SET({ score = 100 }):WHERE("id = ?", 1):to_prepare()
+    local sql, score, id = UPDATE("user", { dialect = "mysql" }):SET({ score = 100 }):WHERE("id = ?", 1):to_prepare()
     assert.equal("UPDATE user SET `score` = ? WHERE (id = ?)", sql)
     assert.equal(100, score)
     assert.equal(1, id)
   end)
 
   it("A10: DATA called twice resets columns", function()
-    local sql = INSERT("user"):DATA({ a = 1 }):DATA({ b = 2 }):to_sql()
+    local sql = INSERT("user", { dialect = "mysql" }):DATA({ a = 1 }):DATA({ b = 2 }):to_sql()
     assert.equal("INSERT INTO user (`b`) VALUES (2)", sql)
   end)
 
@@ -100,13 +100,13 @@ describe("audit-discovered bugs (pending)", function()
   end)
 
   it("NB-3: DELETE:QUERY with false renders false", function()
-    local sql = DELETE("user"):QUERY({ flag = false }):to_sql()
+    local sql = DELETE("user", { dialect = "mysql" }):QUERY({ flag = false }):to_sql()
     assert.equal("DELETE FROM user WHERE (`flag` = false)", sql)
   end)
 
   it("NB-4: DELETE:QUERY userdata renders 'is NULL' (matches SELECT)", function()
     local null = io.stderr -- real userdata on every Lua version
-    local sql = DELETE("user"):QUERY({ deleted = null }):to_sql()
+    local sql = DELETE("user", { dialect = "mysql" }):QUERY({ deleted = null }):to_sql()
     assert.equal("DELETE FROM user WHERE (`deleted` is NULL)", sql)
   end)
 
@@ -134,12 +134,12 @@ describe("audit-discovered bugs (pending)", function()
   end)
 
   it("NB-9: UPDATE string-mode SET values are quoted", function()
-    local sql = UPDATE("user"):SET("name = ?", "Bob"):WHERE("id = ?", 1):to_sql()
+    local sql = UPDATE("user", { dialect = "mysql" }):SET("name = ?", "Bob"):WHERE("id = ?", 1):to_sql()
     assert.equal("UPDATE user SET name = 'Bob' WHERE (id = 1)", sql)
   end)
 
   it("NB-10: UPDATE string-mode SET with false renders false", function()
-    local sql = UPDATE("user"):SET("flag = ?", false):WHERE("id = ?", 1):to_sql()
+    local sql = UPDATE("user", { dialect = "mysql" }):SET("flag = ?", false):WHERE("id = ?", 1):to_sql()
     assert.equal("UPDATE user SET flag = false WHERE (id = 1)", sql)
   end)
 
@@ -149,7 +149,7 @@ describe("audit-discovered bugs (pending)", function()
   end)
 
   it("NB-14: INSERT DATA resets prior COLS", function()
-    local sql = INSERT("user"):COLS("id"):DATA({ a = 1 }):to_sql()
+    local sql = INSERT("user", { dialect = "mysql" }):COLS("id"):DATA({ a = 1 }):to_sql()
     assert.equal("INSERT INTO user (`a`) VALUES (1)", sql)
   end)
 
