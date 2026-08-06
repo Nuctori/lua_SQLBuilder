@@ -27,29 +27,29 @@ describe("integration JSON (" .. conn.dialect .. ")", function()
 
   it("matches a JSON number equality", function()
     -- users with profile.star = 5: alice (id 1), dave O'Brien (id 4)
-    local rows = conn:query(S("*"):FROM("users"):QUERY({ profile = { star = 5 } }):ORDER_BY("id"):to_sql())
-    assert.equal(2, #rows)
+    local rows, qerr = conn:query(S("*"):FROM("users"):QUERY({ profile = { star = 5 } }):ORDER_BY("id"):to_sql())
+    assert(rows, "query failed: " .. tostring(qerr))`n    assert.equal(2, #rows)
     assert.equal(1, rows[1].id)
     assert.equal(4, rows[2].id)
   end)
 
   it("matches a JSON string equality", function()
     -- alice has profile.kind = "admin"
-    local rows = conn:query(S("id"):FROM("users"):QUERY({ profile = { kind = "admin" } }):to_sql())
-    assert.equal(1, #rows)
+    local rows, qerr = conn:query(S("id"):FROM("users"):QUERY({ profile = { kind = "admin" } }):to_sql())
+    assert(rows, "query failed: " .. tostring(qerr))`n    assert.equal(1, #rows)
     assert.equal(1, rows[1].id)
   end)
 
   it("matches a nested JSON path", function()
     -- alice has profile.nested.k = 1
-    local rows = conn:query(S("id"):FROM("users"):QUERY({ profile = { nested = { k = 1 } } }):to_sql())
-    assert.equal(1, #rows)
+    local rows, qerr = conn:query(S("id"):FROM("users"):QUERY({ profile = { nested = { k = 1 } } }):to_sql())
+    assert(rows, "query failed: " .. tostring(qerr))`n    assert.equal(1, #rows)
     assert.equal(1, rows[1].id)
   end)
 
   it("does not match when the JSON key is missing", function()
-    local rows = conn:query(S("id"):FROM("users"):QUERY({ profile = { nope = 1 } }):to_sql())
-    assert.equal(0, #rows)
+    local rows, qerr = conn:query(S("id"):FROM("users"):QUERY({ profile = { nope = 1 } }):to_sql())
+    assert(rows, "query failed: " .. tostring(qerr))`n    assert.equal(0, #rows)
   end)
 
   it("to_prepare JSON parity", function()
