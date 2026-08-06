@@ -121,9 +121,10 @@ local function connect_sqlite()
   function conn:query(sql, ...)
     -- nrows returns (iterator, state, control) for the generic for; wrap the
     -- whole loop so the triple survives and failures carry the SQL.
+    local args = { ... }
     local rows = {}
     local ok_iter, iter_err = pcall(function()
-      for row in self._db:nrows(sql, ...) do
+      for row in self._db.nrows(self._db, sql, unpack(args)) do
         local normalized = {}
         for k, v in pairs(row) do
           normalized[k] = normalize_value(v)

@@ -19,7 +19,14 @@ local escape_map = {
 }
 
 function SQLUtils.quote_to_str (sql)
-    return fmt("%s", string.gsub(sql, "[\0\b\n\r\t\26\\\'\"]", escape_map))
+    -- Loop-based escaping: a gsub pattern containing a NUL byte (\0) breaks
+    -- Lua 5.1's pattern parser (C-string scan stops at NUL).
+    local out = {}
+    for i = 1, #sql do
+        local c = sql:sub(i, i)
+        out[#out + 1] = escape_map[c] or c
+    end
+    return table.concat(out)
 end
 
 function SQLUtils.clear_table(t)
