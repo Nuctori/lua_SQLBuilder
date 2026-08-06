@@ -8,11 +8,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Full CI matrix: Lua 5.1/5.2/5.3/5.4/LuaJIT against real SQLite, MySQL 8 and PostgreSQL 16
-  (busted for unit/audit/production, zero-dependency runner for LuaJIT).
+- Full CI matrix: Lua 5.1/5.2/5.3/5.4/LuaJIT against six real databases —
+  SQLite, MySQL 8, PostgreSQL 16, DuckDB (in-process), ClickHouse (HTTP) and
+  Oracle 23c free (busted for unit/audit/production, zero-dependency runner
+  for LuaJIT).
 - Cross-audit invariants (`spec/audit`): determinism, idempotency, no caller-table
-  mutation, placeholder/param alignment, escaping round-trip, across every builder × dialect.
+  mutation, placeholder/param alignment, escaping round-trip, across every builder × 9 dialects.
 - Injection regression suite (`spec/integration/injection_spec.lua`) on real databases.
+- Adversarial audit regression suite (`spec/unit/adversarial_spec.lua`).
 - Production-usage regression suite derived from fireBookStore-backend call shapes.
 
 ### Changed
@@ -29,6 +32,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - HAVING parameters now participate in `to_prepare`.
 - `%` in string parameters no longer crashes inline rendering (gsub function replacement).
 - `quote_to_str` fixed for Lua 5.1 (NUL byte in gsub pattern).
+- JSON array paths render `$.key[N]` (no stray dot); numeric keys are Lua
+  1-based → JSON 0-based.
+- ClickHouse boolean JSON presence uses `!= ''`/`= ''` (missing key returns
+  empty string, not NULL); ClickHouse 0x1A escapes as `\x1A` (not `\Z`).
+- Oracle identifiers are quoted UPPERCASE (unquoted DDL stores uppercase).
 - Removed stale `__SqlBuilder__*.lua` copies (broken require paths).
 
 ### Fixed

@@ -73,7 +73,8 @@ local sql = sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("book"):QUERY({ u
 a table value is a JSON-path query:
 
 ```lua
-local sql = sqlbuilder.SELECT("*"):FROM("book")
+-- declared mysql: JSON query uses the ->> operator and backticks
+local sql = sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("book")
   :QUERY({ user_id = 1, json = { star = 5 } }):to_sql()
 -- SELECT * FROM book WHERE (`json`->>'$.star' = '5' AND `user_id` = 1)
 ```
@@ -142,9 +143,9 @@ configuration per the database documentation):
 | `postgres` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `sqlite` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `mssql` | `[x]` | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
-| `oracle` (12c+) | `"x"` | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `oracle` (12c+) | `"X"` (UPPERCASE) | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
 | `duckdb` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
-| `clickhouse` | `` `x` `` | backslash | — | `LIMIT n OFFSET m` |
+| `clickhouse` | `` `x` `` | backslash (`\x1A`) | — | `LIMIT n OFFSET m` |
 
 JSON operators: mysql/mariadb/ansi use `->>`; sqlite uses `json_extract` with
 `CAST AS TEXT`; postgres uses `->`/`->>` chains; mssql/oracle use `JSON_VALUE`;
@@ -156,8 +157,8 @@ For a database without a preset, copy a close preset and adjust the fields
 
 ```lua
 local dialect = require "lua_SQLBuilder.dialect"
-dialect.dialects.oracle = dialect.dialects.ansi  -- then tweak fields
-sqlbuilder.set_default_dialect("oracle")
+dialect.dialects.db2 = dialect.dialects.ansi  -- e.g. a DB without a preset
+sqlbuilder.set_default_dialect("db2")
 ```
 
 ## Parameter semantics

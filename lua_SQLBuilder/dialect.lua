@@ -65,6 +65,27 @@ local function escape_mysql(s)
   end
   return table.concat(out)
 end
+-- ClickHouse string escaping: same backslash style as MySQL, but 0x1A must
+-- use \x1A (ClickHouse does not support MySQL's \Z).
+local clickhouse_escape_map = {
+  ['\0'] = "\\0",
+  ['\b'] = "\\b",
+  ['\n'] = "\\n",
+  ['\r'] = "\\r",
+  ['\t'] = "\\t",
+  ['\26'] = "\\x1A",
+  ['\\'] = "\\\\",
+  ["'"] = "\\'",
+}
+local function escape_clickhouse(s)
+  local out = {}
+  for i = 1, #s do
+    local c = s:sub(i, i)
+    out[#out + 1] = clickhouse_escape_map[c] or c
+  end
+  return table.concat(out)
+end
+
 -- ANSI standard (PostgreSQL with standard_conforming_strings=on, SQLite,
 -- SQL Server): single quotes are doubled, backslash is literal.
 local function escape_ansi(s)
@@ -100,23 +121,44 @@ local function json_path_sqlite(table_name, path)
   -- expression results).
   return fmt("CAST(json_extract(%s, '$.%s') AS TEXT)", quote_ident_ansi(table_name), path)
 end
--- PostgreSQL ->> does not accept "$.a.b"; translate to an operator chain:
--- json->'a'->0->>'b' (text keys ->'k', array indices ->N).
-local function json_path_postgres(table_name, path)
-  local parts = {}
-  for part in path:gmatch("[^.]+") do
-    parts[#parts + 1] = part
+-- Split a JSON path into segments: text keys and "[N]" array indices.
+-- "tags[0].k" → {"tags", "[0]", "k"}
+local function split_path(path)
+  local segs = {}
+  local i = 1
+  while i <= #path do
+    local text = path:match("^([^%.%[%]]+)", i)
+    if text then
+      segs[#segs + 1] = text
+      i = i + #text
+    else
+      local idx = path:match("^%[(%d+)%]", i)
+      if idx then
+        segs[#segs + 1] = "[" .. idx .. "]"
+        i = i + #idx + 2
+      else
+        i = i + 1 -- skip "." or "["
+      end
+    end
   end
+  return segs
+end
+
+-- PostgreSQL ->> does not accept "$.a.b" path syntax; translate the path
+-- into an operator chain: json->'a'->0->>'b' (text keys ->'k', array
+-- indices ->N).
+local function json_path_postgres(table_name, path)
+  local segs = split_path(path)
   local expr = quote_ident_ansi(table_name)
-  for i = 1, #parts - 1 do
-    local idx = parts[i]:match("^%[(%d+)%]$")
+  for i = 1, #segs - 1 do
+    local idx = segs[i]:match("^%[(%d+)%]$")
     if idx then
       expr = fmt("%s->%s", expr, idx)
     else
-      expr = fmt("%s->'%s'", expr, parts[i])
+      expr = fmt("%s->'%s'", expr, segs[i])
     end
   end
-  local last = parts[#parts]
+  local last = segs[#segs]
   local last_idx = last:match("^%[(%d+)%]$")
   if last_idx then
     return fmt("%s->>%s", expr, last_idx)
@@ -139,7 +181,7 @@ end
 -- list, numeric args are array indices.
 local function json_path_clickhouse(table_name, path)
   local args = {}
-  for part in path:gmatch("[^.]+") do
+  for _, part in ipairs(split_path(path)) do
     local idx = part:match("^%[(%d+)%]$")
     if idx then
       args[#args + 1] = idx
@@ -238,7 +280,7 @@ local dialects = {
     name = "clickhouse",
     quote_ident = quote_ident_mysql, -- backticks
     json_path = json_path_clickhouse,
-    escape_string = escape_mysql, -- backslash style
+    escape_string = escape_clickhouse, -- backslash style, \x1A not \Z
     render_limit = render_limit_ansi,
     upsert = nil, -- table engines (ReplacingMergeTree) handle dedup
   },

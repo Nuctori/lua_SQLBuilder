@@ -17,7 +17,8 @@ local M = {
 }
 
 --- Set the default dialect for all future builders.
--- Supported: "mysql" (default), "postgres", "sqlite".
+-- Supported: "ansi" (default), "mysql", "mariadb", "postgres", "sqlite",
+-- "mssql", "oracle", "duckdb", "clickhouse".
 -- Per-instance override: pass { dialect = "postgres" } as the trailing
 -- options argument to any builder constructor.
 function M.set_default_dialect(name)

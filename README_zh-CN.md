@@ -119,9 +119,9 @@ sqlbuilder.set_default_dialect("postgres")
 | `postgres` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `sqlite` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `mssql` | `[x]` | `''` 翻倍 | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
-| `oracle`（12c+） | `"x"` | `''` 翻倍 | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `oracle`（12c+） | `"X"`（大写） | `''` 翻倍 | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
 | `duckdb` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
-| `clickhouse` | `` `x` `` | 反斜杠 | — | `LIMIT n OFFSET m` |
+| `clickhouse` | `` `x` `` | 反斜杠（`\x1A`） | — | `LIMIT n OFFSET m` |
 
 JSON 算子：mysql/mariadb/ansi 用 `->>`；sqlite 用 `json_extract` + `CAST AS TEXT`；postgres 用 `->`/`->>` 链；mssql/oracle 用 `JSON_VALUE`；duckdb 用 `json_extract_string`；clickhouse 用 `JSONExtractString`。
 
