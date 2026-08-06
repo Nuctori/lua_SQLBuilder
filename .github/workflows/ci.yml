@@ -87,17 +87,17 @@ jobs:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
       - run: luarocks install busted
-      - name: Install duckdb driver (in-process, needs libduckdb-dev)
+      - name: Install duckdb prebuilt lib (official release asset)
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget gpg build-essential
-          wget -qO- https://deb.griffo.io/duckdb.gpg | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/duckdb.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/duckdb.gpg] https://deb.griffo.io/ noble main" \
-            | sudo tee /etc/apt/sources.list.d/duckdb.list
-          sudo apt-get update
-          sudo apt-get install -y duckdb libduckdb-dev
-          luarocks install luasql-duckdb DUCKDB_DIR=/usr
+          sudo apt-get install -y wget unzip build-essential
+          sudo mkdir -p /opt/duckdb
+          cd /tmp
+          wget -q https://github.com/duckdb/duckdb/releases/download/v1.5.5/libduckdb-linux-amd64.zip
+          sudo unzip -o libduckdb-linux-amd64.zip -d /opt/duckdb
+          sudo sh -c 'echo /opt/duckdb > /etc/ld.so.conf.d/duckdb.conf'
+          sudo ldconfig
+          luarocks install luasql-duckdb DUCKDB_DIR=/opt/duckdb
       - name: Run integration specs against in-process DuckDB
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:
