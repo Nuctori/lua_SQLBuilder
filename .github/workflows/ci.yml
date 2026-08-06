@@ -99,9 +99,11 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: sqlbuilder_test
-          # md5 auth: pgmoon implements md5 in pure Lua; avoids the
-          # luaossl build failure against OpenSSL 3 (SCRAM needs luaossl)
-          POSTGRES_HOST_AUTH_METHOD: md5
+          # trust auth: no crypto needed. pgmoon's md5 AND scram both require
+          # luaossl/LuaCrypto (openssl); luaossl does not build on OpenSSL 3.
+          # Server-side scram-stored passwords force SCRAM even with md5 in
+          # pg_hba, so trust is the only zero-crypto option for CI.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ["5432:5432"]
         options: >-
           --health-cmd="pg_isready -U postgres -h 127.0.0.1"
@@ -122,9 +124,8 @@ jobs:
             sudo apt-get install -y libmysqlclient-dev
             luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql MYSQL_LIBDIR=/usr/lib/x86_64-linux-gnu
           else
-            # pgmoon is pure Lua; md5 auth (POSTGRES_HOST_AUTH_METHOD) needs
-            # no crypto rock; lua-cjson (openresty fork) supports Lua 5.4
-            # (the plain 'cjson' rock does not)
+            # pgmoon is pure Lua; trust auth needs no crypto rock
+            # (luaossl does not build against OpenSSL 3)
             sudo apt-get install -y libssl-dev
             luarocks install luasocket
             luarocks install lua-cjson
