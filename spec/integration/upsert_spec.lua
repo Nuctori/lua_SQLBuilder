@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Integration: upsert behavior on real databases.
 -- MySQL renders ON DUPLICATE KEY UPDATE; PG/SQLite render ON CONFLICT.
 

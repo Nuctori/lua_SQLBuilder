@@ -6,13 +6,16 @@
 --
 --   db.current()            → "sqlite" | "mysql" | "postgres"
 --   db.connect()            → conn | nil, reason   (nil when driver missing)
---   conn:exec(sql, ...)     → true | nil, err       (bound params supported)
+--   conn:exec(sql, ...)     → true | nil, err       (bound params if supported)
 --   conn:query(sql, ...)    → rows | nil, err       (rows = array of {col=val})
 --   conn:last_insert_id()   → number | nil
+--   conn.supports_params    → true when the driver can bind ? parameters
 --   conn:close()
 --
--- Results are normalized so assertions are dialect/driver independent:
--- numeric-looking strings become numbers, NULLs stay absent keys.
+-- Driver note: LuaSQL (mysql/postgres) has NO parameter binding in the
+-- released 2.x line, so param-bound execution is provided by lsqlite3 and
+-- pgmoon only; mysql integration exercises to_sql (inline) execution and
+-- string-level prepare validation (see spec/audit).
 
 local db = {}
 
@@ -42,18 +45,25 @@ local function normalize_value(v)
   return v
 end
 
-local function normalize_rows(names, raw_row)
-  local out = {}
-  for i, raw in ipairs(raw_row) do
-    if raw ~= nil then
-      out[names[i]] = normalize_value(raw)
-    end
+-- Inline SQL literal for fixture seeding (values are trusted constants).
+local function literal(v)
+  if v == nil then
+    return "NULL"
   end
-  return out
+  local t = type(v)
+  if t == "number" then
+    return tostring(v)
+  end
+  if t == "boolean" then
+    return v and "1" or "0"
+  end
+  return "'" .. tostring(v):gsub("'", "''") .. "'"
 end
 
+db.literal = literal
+
 -------------------------------------------------------------------------------
--- SQLite (lsqlite3)
+-- SQLite (lsqlite3) — supports ? binding
 -------------------------------------------------------------------------------
 
 local function connect_sqlite()
@@ -61,35 +71,51 @@ local function connect_sqlite()
   if not ok then
     return nil, "lsqlite3 not available"
   end
-  local path = env("LUA_SQLBUILDER_SQLITE_PATH", "")
-  local handle = (path ~= "") and lsqlite3.open(path) or lsqlite3.open_memory()
+  local handle = lsqlite3.open_memory()
   if not handle then
     return nil, "lsqlite3 failed to open database"
   end
 
   local conn = {
     dialect = "sqlite",
+    supports_params = true,
     _db = handle,
   }
 
   function conn:exec(sql, ...)
     local n = select("#", ...)
-    if n > 0 then
-      local stmt = assert(self._db:prepare(sql))
-      local args = { ... }
-      -- bind_values(...) binds positionally in order (stmt:bind is index-based)
-      local ok_bind, err = stmt:bind_values(unpack(args))
-      if not ok_bind then
-        stmt:finalize()
-        return nil, err
+    if n == 0 then
+      local code, errmsg = self._db:exec(sql)
+      if code ~= 0 then
+        return nil, errmsg
       end
-      local step = stmt:step()
-      local ok_step = (step == lsqlite3.DONE or step == lsqlite3.ROW)
-      stmt:finalize()
-      return ok_step or nil, ok_step and nil or tostring(step)
+      return true
     end
-    local code, errmsg = self._db:exec(sql)
-    return (code == 0) or nil, (code == 0) and nil or errmsg
+    -- Bound path, defensively: lsqlite3 versions differ on raise vs return.
+    local ok_p, stmt, prep_err = pcall(self._db.prepare, self._db, sql)
+    if not ok_p or not stmt then
+      return nil, "prepare failed (" .. tostring(prep_err) .. "): " .. tostring(sql)
+    end
+    local args = { ... }
+    local ok_b, bind_err = pcall(stmt.bind_values, stmt, unpack(args))
+    if not ok_b then
+      stmt:finalize()
+      return nil, "bind failed: " .. tostring(bind_err)
+    end
+    if bind_err ~= nil and bind_err ~= 0 then
+      stmt:finalize()
+      return nil, "bind returned " .. tostring(bind_err)
+    end
+    local ok_s, step = pcall(stmt.step, stmt)
+    if not ok_s then
+      stmt:finalize()
+      return nil, "step raised: " .. tostring(step)
+    end
+    stmt:finalize()
+    if step == lsqlite3.DONE or step == lsqlite3.ROW then
+      return true
+    end
+    return nil, "step returned " .. tostring(step)
   end
 
   function conn:query(sql, ...)
@@ -120,24 +146,92 @@ local function connect_sqlite()
 end
 
 -------------------------------------------------------------------------------
--- MySQL / PostgreSQL (LuaSQL 3.x)
+-- PostgreSQL (pgmoon) — pure Lua, supports ? binding (converted to $n)
 -------------------------------------------------------------------------------
 
-local function connect_luasql(driver, dsn_prefix)
-  local ok, luasql_driver = pcall(require, "luasql." .. driver)
+local function connect_pgmoon()
+  local ok, pgmoon = pcall(require, "pgmoon")
   if not ok then
-    return nil, "luasql." .. driver .. " not available"
+    return nil, "pgmoon not available"
   end
-  local factory = luasql_driver[driver]
-  if not factory then
-    return nil, "luasql." .. driver .. " has no factory"
+  local pg = pgmoon.new({
+    host = env("POSTGRES_HOST", "127.0.0.1"),
+    port = tonumber(env("POSTGRES_PORT", "5432")),
+    user = env("POSTGRES_USER", "postgres"),
+    password = env("POSTGRES_PASSWORD", "postgres"),
+    database = env("POSTGRES_DATABASE", "sqlbuilder_test"),
+  })
+  local connected, err = pg:connect()
+  if not connected then
+    return nil, "connection failed: " .. tostring(err)
   end
-  local env_obj = factory()
-  local host = env(dsn_prefix .. "_HOST", "127.0.0.1")
-  local port = env(dsn_prefix .. "_PORT", driver == "mysql" and "3306" or "5432")
-  local user = env(dsn_prefix .. "_USER", driver == "mysql" and "root" or "postgres")
-  local password = env(dsn_prefix .. "_PASSWORD", driver == "mysql" and "root" or "postgres")
-  local database = env(dsn_prefix .. "_DATABASE", "sqlbuilder_test")
+
+  local conn = {
+    dialect = "postgres",
+    supports_params = true,
+    _pg = pg,
+  }
+
+  function conn:exec(sql, ...)
+    local res, err = self._pg:query(sql, ...)
+    if res == false then
+      return nil, err
+    end
+    return true
+  end
+
+  function conn:query(sql, ...)
+    local res, err = self._pg:query(sql, ...)
+    if res == false then
+      return nil, err
+    end
+    local rows = {}
+    for _, row in ipairs(res) do
+      local normalized = {}
+      for k, v in pairs(row) do
+        normalized[k] = normalize_value(v)
+      end
+      rows[#rows + 1] = normalized
+    end
+    return rows
+  end
+
+  function conn:last_insert_id()
+    local ok_rows, rows = pcall(self.query, self, "SELECT LASTVAL() AS id")
+    if ok_rows and rows and rows[1] then
+      return rows[1].id
+    end
+    return nil
+  end
+
+  function conn:close()
+    self._pg:close()
+  end
+
+  return conn
+end
+
+-------------------------------------------------------------------------------
+-- MySQL (LuaSQL) — inline execution only (no ? binding in released 2.x)
+-------------------------------------------------------------------------------
+
+local function luas_driver_or(mod)
+  -- luasql.mysql module exposes a .mysql factory (or the module may already
+  -- be an environment object)
+  return mod.mysql and mod.mysql() or mod
+end
+
+local function connect_luasql_mysql()
+  local ok, luasql_driver = pcall(require, "luasql.mysql")
+  if not ok then
+    return nil, "luasql.mysql not available"
+  end
+  local env_obj = luas_driver_or(luasql_driver)
+  local host = env("MYSQL_HOST", "127.0.0.1")
+  local port = env("MYSQL_PORT", "3306")
+  local user = env("MYSQL_USER", "root")
+  local password = env("MYSQL_PASSWORD", "root")
+  local database = env("MYSQL_DATABASE", "sqlbuilder_test")
 
   local handle, err = env_obj:connect(database, user, password, host, port)
   if not handle then
@@ -146,21 +240,20 @@ local function connect_luasql(driver, dsn_prefix)
   end
 
   local conn = {
-    dialect = driver,
+    dialect = "mysql",
+    supports_params = false, -- LuaSQL 2.x cannot bind ? parameters
     _conn = handle,
     _env = env_obj,
   }
 
   function conn:exec(sql, ...)
     local n = select("#", ...)
-    local cursor, exec_err
     if n > 0 then
-      cursor, exec_err = self._conn:execute(sql, ...)
-    else
-      cursor, exec_err = self._conn:execute(sql)
+      return nil, "mysql driver (LuaSQL 2.x) does not support bound parameters"
     end
+    local cursor, err = self._conn:execute(sql)
     if not cursor then
-      return nil, exec_err
+      return nil, err
     end
     if type(cursor) == "table" and cursor.close then
       cursor:close()
@@ -168,38 +261,31 @@ local function connect_luasql(driver, dsn_prefix)
     return true
   end
 
-  function conn:query(sql, ...)
-    local n = select("#", ...)
-    local cursor, query_err
-    if n > 0 then
-      cursor, query_err = self._conn:execute(sql, ...)
-    else
-      cursor, query_err = self._conn:execute(sql)
-    end
+  function conn:query(sql)
+    local cursor, err = self._conn:execute(sql)
     if not cursor then
-      return nil, query_err
+      return nil, err
     end
     local names = cursor:getcolnames()
     local rows = {}
     while true do
       local raw = cursor:fetch({}, "a")
       if not raw then break end
-      rows[#rows + 1] = normalize_rows(names, raw)
+      local normalized = {}
+      for i, name in ipairs(names) do
+        local v = raw[i]
+        if v ~= nil then
+          normalized[name] = normalize_value(v)
+        end
+      end
+      rows[#rows + 1] = normalized
     end
     cursor:close()
     return rows
   end
 
   function conn:last_insert_id()
-    if driver == "mysql" then
-      return self._conn:getlastautoid()
-    end
-    -- postgres: last sequence value in this session
-    local ok_rows, rows = pcall(self.query, self, "SELECT LASTVAL() AS id")
-    if ok_rows and rows and rows[1] then
-      return rows[1].id
-    end
-    return nil
+    return self._conn:getlastautoid()
   end
 
   function conn:close()
@@ -225,9 +311,9 @@ function db.connect()
   if dialect == "sqlite" then
     conn, reason = connect_sqlite()
   elseif dialect == "mysql" then
-    conn, reason = connect_luasql("mysql", "MYSQL")
+    conn, reason = connect_luasql_mysql()
   elseif dialect == "postgres" then
-    conn, reason = connect_luasql("postgres", "POSTGRES")
+    conn, reason = connect_pgmoon()
   else
     return nil, "unknown dialect: " .. dialect
   end

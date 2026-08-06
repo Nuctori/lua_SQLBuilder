@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Machine cross-audit: invariants that must hold across every public builder
 -- API and every dialect. The audit runs on EVERY CI run; violations here mean
 -- the library broke a behavioral contract, not just a golden string.

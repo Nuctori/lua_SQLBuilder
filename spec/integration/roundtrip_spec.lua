@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Integration: generated SQL actually executes against the real database.
 -- Dialect comes from env LUA_SQLBUILDER_DB (sqlite | mysql | postgres).
 --
@@ -50,6 +53,10 @@ describe("integration round-trip (" .. conn.dialect .. ")", function()
   end)
 
   it("to_sql and to_prepare return identical rows (parity)", function()
+    if not conn.supports_params then
+      pending("driver binding unsupported on " .. conn.dialect .. " (LuaSQL 2.x) - covered by sqlite/pg")
+      return
+    end
     local inline_sql = S("*"):FROM("users"):WHERE("status = ?", 1):ORDER_BY("id"):to_sql()
     local prep_sql, p = S("*"):FROM("users"):WHERE("status = ?", 1):ORDER_BY("id"):to_prepare()
     eq_rows(conn:query(inline_sql), conn:query(prep_sql, p))
@@ -81,6 +88,10 @@ describe("integration round-trip (" .. conn.dialect .. ")", function()
   end)
 
   it("INSERT round-trips (prepare path with quotes in value)", function()
+    if not conn.supports_params then
+      pending("driver binding unsupported on " .. conn.dialect .. " (LuaSQL 2.x) - covered by sqlite/pg")
+      return
+    end
     local sql, row = I("users"):COLS("id", "name", "status"):VALUES({ 99, "O'Brien", 1 }):to_prepare()
     assert(conn:exec(sql, unpack(row)))
     local rows = conn:query("SELECT name FROM users WHERE id = 99")

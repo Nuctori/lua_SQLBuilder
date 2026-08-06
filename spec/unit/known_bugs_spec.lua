@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Known-bug inventory. Each `it` is `pending` until the bug is fixed; fixing
 -- a bug = flipping its assertion to green. IDs reference the project bug
 -- list (A1..A20). A2/A9 were fixed by the phase-0b dialect refactor and now

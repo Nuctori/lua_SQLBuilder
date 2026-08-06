@@ -1,9 +1,11 @@
 -- Schema + seed data for integration tests, per dialect.
 -- All ids are explicit so assertions are deterministic.
+-- Seeding uses inline literals (db.literal) so it works on every driver,
+-- including LuaSQL 2.x which cannot bind parameters.
+
+local db = require "spec.helpers.db"
 
 local fixtures = {}
-
-local unpack = table.unpack or unpack -- luacheck: ignore 143
 
 fixtures.tables = { "users", "book", "likes", "chapter" }
 
@@ -54,19 +56,20 @@ local seeds = {
 
 -- Rebuild all tables for the given connection.
 function fixtures.prepare(conn)
-  local dialect = conn.dialect
   for _, name in ipairs(fixtures.tables) do
     assert(conn:exec("DROP TABLE IF EXISTS " .. name), "drop " .. name)
   end
-  for _, ddl in ipairs(schemas[dialect]) do
+  for _, ddl in ipairs(schemas[conn.dialect]) do
     assert(conn:exec(ddl), "create: " .. ddl)
   end
   for _, name in ipairs(fixtures.tables) do
     for _, row in ipairs(seeds[name]) do
-      local placeholders = {}
-      for i = 1, #row do placeholders[i] = "?" end
-      local sql = "INSERT INTO " .. name .. " VALUES (" .. table.concat(placeholders, ", ") .. ")"
-      local ok, err = conn:exec(sql, unpack(row))
+      local vals = {}
+      for i = 1, #row do
+        vals[i] = db.literal(row[i])
+      end
+      local sql = "INSERT INTO " .. name .. " VALUES (" .. table.concat(vals, ", ") .. ")"
+      local ok, err = conn:exec(sql)
       assert(ok, "seed " .. name .. ": " .. tostring(err))
     end
   end

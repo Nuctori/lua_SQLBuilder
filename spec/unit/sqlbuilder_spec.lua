@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Golden SQL tests for the base SQLBuilder (mysql dialect by default).
 -- These lock the library's exact output so regressions are caught at CI.
 

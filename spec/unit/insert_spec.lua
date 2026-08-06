@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Golden SQL tests for INSERT (mysql dialect by default).
 
 local INSERT = require "lua_SQLBuilder".INSERT

@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Production-usage regression: the exact call shapes found in
 -- fireBookStore-backend (vendored copy at lualib/sqlBuilder) so the library
 -- never drifts away from how it is actually consumed.

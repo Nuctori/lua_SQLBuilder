@@ -65,7 +65,6 @@ jobs:
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:
           LUA_SQLBUILDER_DB: sqlite
-          LUA_SQLBUILDER_SQLITE_PATH: /tmp/lua_sqlbuilder_test.sqlite3
 
   integration-servers:
     name: ${{ matrix.db }} integration (Lua ${{ matrix.lua }})
@@ -109,11 +108,14 @@ jobs:
       - name: Install DB drivers
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmysqlclient-dev libpq-dev
           if [ "${{ matrix.db }}" = "mysql" ]; then
+            sudo apt-get install -y libmysqlclient-dev
             luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql MYSQL_LIBDIR=/usr/lib/x86_64-linux-gnu
           else
-            luarocks install luasql-postgres
+            # pgmoon is pure Lua (needs only luasocket); no libpq headers required
+            sudo apt-get install -y libssl-dev
+            luarocks install luasocket
+            luarocks install pgmoon
           fi
       - name: Run integration specs against ${{ matrix.db }}
         run: busted --helper=spec/helpers/init.lua spec/integration

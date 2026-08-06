@@ -1,3 +1,6 @@
+-- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Integration: JSON field queries against real databases.
 -- Dialect-specific operator rendering is verified by executing the SQL.
 
@@ -50,6 +53,10 @@ describe("integration JSON (" .. conn.dialect .. ")", function()
   end)
 
   it("to_prepare JSON parity", function()
+    if not conn.supports_params then
+      pending("driver binding unsupported on " .. conn.dialect .. " (LuaSQL 2.x) - covered by sqlite/pg")
+      return
+    end
     local inline = conn:query(S("id"):FROM("users"):QUERY({ profile = { star = 5 } }):ORDER_BY("id"):to_sql())
     local sql, p = S("id"):FROM("users"):QUERY({ profile = { star = 5 } }):ORDER_BY("id"):to_prepare()
     local prepared = conn:query(sql, p)
