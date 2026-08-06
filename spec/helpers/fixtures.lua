@@ -1,0 +1,79 @@
+-- Schema + seed data for integration tests, per dialect.
+-- All ids are explicit so assertions are deterministic.
+
+local fixtures = {}
+
+fixtures.tables = { "users", "book", "likes", "chapter" }
+
+local schemas = {
+  sqlite = {
+    "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, status INTEGER, score REAL, profile TEXT)",
+    "CREATE TABLE book (book_id INTEGER PRIMARY KEY, title TEXT NOT NULL, star INTEGER)",
+    "CREATE TABLE likes (user_id INTEGER PRIMARY KEY, like_count INTEGER)",
+    "CREATE TABLE chapter (id INTEGER PRIMARY KEY AUTOINCREMENT, book_id INTEGER, status INTEGER)",
+  },
+  mysql = {
+    "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(255) NOT NULL, status INT, score DOUBLE, profile JSON)",
+    "CREATE TABLE book (book_id INT PRIMARY KEY, title VARCHAR(255) NOT NULL, star INT)",
+    "CREATE TABLE likes (user_id INT PRIMARY KEY, like_count INT)",
+    "CREATE TABLE chapter (id INT AUTO_INCREMENT PRIMARY KEY, book_id INT, status INT)",
+  },
+  postgres = {
+    "CREATE TABLE users (id INT PRIMARY KEY, name TEXT NOT NULL, status INT, score DOUBLE PRECISION, profile JSONB)",
+    "CREATE TABLE book (book_id INT PRIMARY KEY, title TEXT NOT NULL, star INT)",
+    "CREATE TABLE likes (user_id INT PRIMARY KEY, like_count INT)",
+    "CREATE TABLE chapter (id SERIAL PRIMARY KEY, book_id INT, status INT)",
+  },
+}
+
+local seeds = {
+  users = {
+    { 1, "alice", 1, 100, '{"star":5,"tags":["x","y"],"nested":{"k":1}}' },
+    { 2, "bob", 0, 50, '{"star":3,"tags":[],"nested":{"k":0}}' },
+    { 3, "carol", 1, 75, nil },
+    { 4, "dave O'Brien", 1, 200, '{"star":5}' },
+  },
+  book = {
+    { 1, "The Go Programming Language", 5 },
+    { 2, "Clean Code", 4 },
+    { 3, "Refactoring", 5 },
+  },
+  likes = {
+    { 1, 7 },
+    { 2, 3 },
+  },
+  chapter = {
+    { 1, 1 },
+    { 2, 1 },
+    { 3, 2 },
+  },
+}
+
+-- Rebuild all tables for the given connection.
+function fixtures.prepare(conn)
+  local dialect = conn.dialect
+  for _, name in ipairs(fixtures.tables) do
+    assert(conn:exec("DROP TABLE IF EXISTS " .. name), "drop " .. name)
+  end
+  for _, ddl in ipairs(schemas[dialect]) do
+    assert(conn:exec(ddl), "create: " .. ddl)
+  end
+  for _, name in ipairs(fixtures.tables) do
+    for _, row in ipairs(seeds[name]) do
+      local placeholders = {}
+      for i = 1, #row do placeholders[i] = "?" end
+      local sql = "INSERT INTO " .. name .. " VALUES (" .. table.concat(placeholders, ", ") .. ")"
+      local ok, err = conn:exec(sql, table.unpack(row))
+      assert(ok, "seed " .. name .. ": " .. tostring(err))
+    end
+  end
+end
+
+-- Canonical expected rows (dialect-independent).
+fixtures.expected = {
+  users_alice = { id = 1, name = "alice", status = 1, score = 100 },
+  users_bob = { id = 2, name = "bob", status = 0, score = 50 },
+  users_carol = { id = 3, name = "carol", status = 1, score = 75 },
+}
+
+return fixtures

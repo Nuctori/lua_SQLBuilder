@@ -1,0 +1,10 @@
+-- Busted configuration
+-- The `--helper` below is set in CI; it prepends the project root to
+-- package.path so `require "lua_SQLBuilder"` and `require "spec.helpers.*"`
+-- resolve regardless of the working directory.
+
+output = "utfTerminal"
+verbose = false
+
+-- No tags: integration specs are gated by the LUA_SQLBUILDER_DB env var
+-- (see spec/helpers/db.lua) so the same files run against any dialect.

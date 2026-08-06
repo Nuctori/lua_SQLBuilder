@@ -2,8 +2,9 @@ local class = require "lua_SQLBuilder.class"
 local HAVING = class("HAVING")
 local fmt = string.format
 
-function HAVING:ctor()
+function HAVING:ctor(dialect)
     self.conditions = {}
+    self._dialect = dialect
 end
 
 function HAVING:add(query, param)

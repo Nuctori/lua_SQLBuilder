@@ -2,8 +2,9 @@ local class = require "lua_SQLBuilder.class"
 local OR = class("OR")
 local fmt = string.format
 
-function OR:ctor()
+function OR:ctor(dialect)
     self.subSqlObjs = {}
+    self._dialect = dialect
 end
 
 function OR:_add(sqlObj)

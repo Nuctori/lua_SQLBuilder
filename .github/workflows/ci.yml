@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LUA_PATH: "./?.lua;./?/init.lua;;"
+
+jobs:
+  lint:
+    name: lint (luacheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install luacheck
+      - run: luacheck lua_SQLBuilder spec
+
+  unit:
+    name: unit (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
+      - name: Run unit specs (pure SQL generation, no DB)
+        run: busted --helper=spec/helpers/init.lua spec/unit spec/production
+
+  integration-sqlite:
+    name: sqlite integration (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install sqlite driver
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+          luarocks install lsqlite3
+      - name: Run integration specs against in-process SQLite
+        run: busted --helper=spec/helpers/init.lua spec/integration
+        env:
+          LUA_SQLBUILDER_DB: sqlite
+          LUA_SQLBUILDER_SQLITE_PATH: /tmp/lua_sqlbuilder_test.sqlite3
+
+  integration-servers:
+    name: ${{ matrix.db }} integration (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.4", "luajit-2.1"]
+        db: [mysql, postgres]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sqlbuilder_test
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sqlbuilder_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres -h 127.0.0.1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install DB drivers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmysqlclient-dev libpq-dev
+          luarocks install luasql-mysql
+          luarocks install luasql-postgres
+      - name: Run integration specs against ${{ matrix.db }}
+        run: busted --helper=spec/helpers/init.lua spec/integration
+        env:
+          LUA_SQLBUILDER_DB: ${{ matrix.db }}
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: "3306"
+          MYSQL_USER: root
+          MYSQL_PASSWORD: root
+          MYSQL_DATABASE: sqlbuilder_test
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: "5432"
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DATABASE: sqlbuilder_test

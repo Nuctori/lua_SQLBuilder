@@ -2,9 +2,9 @@ local class = require "lua_SQLBuilder.class"
 local WHERE = class("WHERE")
 local fmt = string.format
 
-function WHERE:ctor()
+function WHERE:ctor(dialect)
     self.conditions = {}
-
+    self._dialect = dialect
 end
 
 function WHERE:add(query, param)
