@@ -302,11 +302,11 @@ local function connect_luasql_mysql()
     if not cursor then
       return nil, query_err
     end
-    -- Named fetch mode returns {col=value} rows directly (getcolnames is
-    -- unreliable across LuaSQL builds)
+    -- In LuaSQL-mysql, fetch mode 'a' returns rows keyed by column name
+    -- ('n' is numeric indices, opposite of the generic manual)
     local rows = {}
     while true do
-      local raw = cursor:fetch({}, "n")
+      local raw = cursor:fetch({}, "a")
       if not raw then break end
       local normalized = {}
       for k, v in pairs(raw) do
