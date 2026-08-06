@@ -36,6 +36,9 @@ function DELETE:QUERY(queryTable)
                 local jfield, jquery = jsonSQL[1], jsonSQL[2]
                 self:WHERE(jfield, jquery)
             end
+        elseif type(query) == "userdata" then
+            -- 与 SELECT:QUERY 一致：NULL 用 is NULL（= NULL 永不匹配）
+            self:WHERE(fmt("%s is NULL", quote(field)))
         else
             self:WHERE(fmt("%s = ?", quote(field)), query)
         end

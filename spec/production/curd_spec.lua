@@ -14,7 +14,7 @@ describe("production patterns", function()
       :FROM("users")
       :WHERE("id in ?", userIds)
       :to_sql()
-    assert.equal("SELECT id, username, nick FROM users WHERE (id in (1,2,3))", sql)
+    assert.equal("SELECT id, username, nick FROM users WHERE (id in (1, 2, 3))", sql)
   end)
 
   it("grass_group.lua: SELECT with QUERY on chapter", function()

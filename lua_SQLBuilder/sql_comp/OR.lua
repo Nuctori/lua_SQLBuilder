@@ -11,6 +11,14 @@ function OR:_add(sqlObj)
 end
 
 function OR:add(sqlBuilder)
+    -- OR 子对象只允许携带 WHERE/OR 条件；其它子句（ORDER/LIMIT/GROUP 等）
+    -- 在 OR 上下文中无意义且会被静默丢弃 —— 显式报错（NB-8）
+    for _, comp in ipairs({ "_order", "_limit", "_group", "_having" }) do
+        local part = sqlBuilder[comp]
+        if part and next(part.orders or part.limit or part.groups or part.conditions or {}) then
+            error("OR sub-builder cannot carry " .. comp:sub(2):upper() .. " clauses (only WHERE/OR are supported)", 3)
+        end
+    end
     self:_add(sqlBuilder)
 end
 

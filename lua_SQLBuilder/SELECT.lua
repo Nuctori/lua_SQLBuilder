@@ -22,7 +22,8 @@ function SELECT:ctor(...)
 end
 
 function SELECT:TableOperator()
-    return fmt("SELECT %s FROM %s", table.concat(self.fields, ", "), table.concat(self.froms, ", "))
+    local fields = #self.fields > 0 and table.concat(self.fields, ", ") or "*"
+    return fmt("SELECT %s FROM %s", fields, table.concat(self.froms, ", "))
 end
 
 function SELECT:FIELD(...)
@@ -62,7 +63,8 @@ function SELECT:QUERY(queryTable)
         elseif type(query) == "userdata" then
             self:WHERE(fmt("%s is NULL", quote(field)))
         elseif type(query) == "boolean" then
-            self:WHERE(fmt("%s = ?", quote(field)), tostring(query))
+            -- 布尔直接作参数：WHERE 渲染为 = true / = false（避免 'true' 字符串陷阱）
+            self:WHERE(fmt("%s = ?", quote(field)), query)
         else
             self:WHERE(fmt("%s = ?", quote(field)), query)
         end
@@ -71,7 +73,9 @@ function SELECT:QUERY(queryTable)
 end
 
 function SELECT:PAGE(page)
-    self.page = tonumber(page)
+    page = tonumber(page)
+    assert(page and page >= 1, "PAGE requires a number >= 1, got: " .. tostring(page))
+    self.page = page
     self.per = self.per or 10
     self:LIMIT(self.per * (self.page - 1), self.per)
     return self

@@ -15,6 +15,10 @@ end
 function ORDER:desc(boolean)
     boolean = boolean or false
     assert(type(boolean) == "boolean")
+    if #self.orders == 0 then
+        -- DESC/ASC without ORDER_BY is a no-op (was a nil-index crash)
+        return
+    end
     self.orders[#self.orders][2] = boolean
 end
 

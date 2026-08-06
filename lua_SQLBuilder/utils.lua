@@ -159,16 +159,21 @@ function SQLUtils.Make_JsonQuery(tableName, query, dialect)
         elseif typeOfv == "number" then
             funcs[#funcs + 1] = { fmt("%s = ?", dialect.json_path(tableName, fatherPath .. k)), tostring(v) }
         elseif typeOfv == "table" then
-            for subk, subv in pairs(v) do
-                func(subk, subv, k .. ".", funcs)
+            local keys = {}
+            for subk in pairs(v) do
+                keys[#keys + 1] = subk
+            end
+            table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+            for _, subk in ipairs(keys) do
+                func(subk, v[subk], k .. ".", funcs)
             end
         elseif typeOfv == "boolean" then
-            -- KNOWN BUG A3: returns a bare string; callers index it as a pair.
-            -- Fixed in phase 1 (see spec/unit/known_bugs_spec.lua).
-            if v == true then
-                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NOT NULL", tableName, fatherPath .. k)
+            -- 方言感知的 IS (NOT) NULL；返回 {sql} 对（无参数）
+            local expr = dialect.json_path(tableName, fatherPath .. k)
+            if v then
+                funcs[#funcs + 1] = { fmt("%s IS NOT NULL", expr) }
             else
-                funcs[#funcs + 1] = fmt("%s->>'$.%s' IS NULL", tableName, fatherPath .. k)
+                funcs[#funcs + 1] = { fmt("%s IS NULL", expr) }
             end
         end
     end

@@ -119,11 +119,11 @@ describe("audit: no mutation of caller tables", function()
     assert.equal("name1", row[2])
   end)
 
-  it("A19 (pending): WHERE table param with strings is mutated", function()
-    pending("A19 - fixed in phase 1")
+  it("A19: WHERE table param with strings is not mutated", function()
     local names = { "a", "b" }
     SQLBuilder.SQLBuilder("SELECT * FROM user"):WHERE("name in ?", names):to_sql()
     assert.equal("a", names[1])
+    assert.equal("b", names[2])
   end)
 end)
 
@@ -139,8 +139,7 @@ describe("audit: placeholder/param alignment", function()
     assert.equal(2, p2)
   end)
 
-  it("A1 (pending): UPDATE string-mode prepare misaligns placeholders", function()
-    pending("A1 - fixed in phase 1")
+  it("A1: UPDATE string-mode prepare aligns placeholders", function()
     local sql = SQLBuilder.UPDATE("user"):SET("score = score + ?", 1):WHERE("id = ?", 1):to_prepare()
     local _, count = sql:gsub("%?", "?")
     assert.equal(2, count)
