@@ -1,3 +1,6 @@
+-- Bootstrap: project root on package.path (busted rewrites it on Lua 5.1)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Injection regression: values containing quotes, backslashes and control
 -- characters must round-trip through to_sql (inline) on the real database.
 -- to_prepare is covered by the driver; this locks the inline escaping.

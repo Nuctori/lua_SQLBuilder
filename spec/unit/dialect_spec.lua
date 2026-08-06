@@ -1,3 +1,6 @@
+-- Bootstrap: project root on package.path (busted rewrites it on Lua 5.1)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Direct tests for the dialect module + module-level defaults
 -- (audit gap: set_default_dialect / resolve had zero coverage).
 

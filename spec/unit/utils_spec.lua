@@ -1,3 +1,6 @@
+-- Bootstrap: project root on package.path (busted rewrites it on Lua 5.1)
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
 -- Direct tests for utils pure functions (audit gap: zero coverage before).
 
 local utils = require "lua_SQLBuilder.utils"
