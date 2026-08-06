@@ -13,6 +13,7 @@ Thumbs.db
 
 # Agent / tooling
 .pi/
+.pi-subagents/
 
 # Build artifacts
 build/

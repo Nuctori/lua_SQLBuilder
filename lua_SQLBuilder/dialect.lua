@@ -28,9 +28,11 @@ local function json_path_mysql(table_name, path)
 end
 
 local function json_path_sqlite(table_name, path)
-  -- json_extract works on every sqlite >= 3.9 (the ->> operator needs 3.38+,
-  -- and the lsqlite3 rock may bundle an older amalgamation)
-  return fmt("json_extract(%s, '$.%s')", quote_ident_ansi(table_name), path)
+  -- json_extract works on every sqlite >= 3.9. CAST AS TEXT makes equality
+  -- with the string form portable: sqlite does not apply affinity to
+  -- expression-to-expression comparisons, so json_extract(...) = '5'
+  -- (INTEGER vs TEXT) would never match.
+  return fmt("CAST(json_extract(%s, '$.%s') AS TEXT)", quote_ident_ansi(table_name), path)
 end
 
 -- PostgreSQL's ->> does not accept the "$.a.b" path syntax; translate the

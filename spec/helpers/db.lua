@@ -172,18 +172,48 @@ local function connect_pgmoon()
     _pg = pg,
   }
 
+  -- PostgreSQL prepared statements use $n placeholders. pgmoon does not
+  -- convert "?", so translate positionally (when params are present every
+  -- "?" in the SQL is a placeholder; inline string literals with "?" never
+  -- reach this path with params).
+  local function pg_convert(sql, n)
+    local i = 0
+    local out = sql:gsub("%?", function()
+      i = i + 1
+      return "$" .. i
+    end)
+    if i ~= n then
+      return nil, "placeholder count mismatch: " .. i .. " placeholders, " .. n .. " params"
+    end
+    return out
+  end
+
   function conn:exec(sql, ...)
-    local res, exec_err = self._pg:query(sql, ...)
-    if res == false then
-      return nil, exec_err
+    local n = select("#", ...)
+    if n > 0 then
+      sql, exec_err = pg_convert(sql, n)
+      if not sql then
+        return nil, exec_err
+      end
+    end
+    local res, err = self._pg:query(sql, ...)
+    if not res then
+      return nil, err
     end
     return true
   end
 
   function conn:query(sql, ...)
-    local res, query_err = self._pg:query(sql, ...)
-    if res == false then
-      return nil, query_err
+    local n = select("#", ...)
+    if n > 0 then
+      sql, query_err = pg_convert(sql, n)
+      if not sql then
+        return nil, query_err
+      end
+    end
+    local res, err = self._pg:query(sql, ...)
+    if not res then
+      return nil, err
     end
     local rows = {}
     for _, row in ipairs(res) do
