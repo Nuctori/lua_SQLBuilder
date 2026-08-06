@@ -109,6 +109,10 @@ describe("integration round-trip (" .. conn.dialect .. ")", function()
   end)
 
   it("UPDATE round-trips", function()
+    if conn.dialect == "clickhouse" then
+      pending("clickhouse has no standard UPDATE (uses ALTER TABLE ... UPDATE mutations)")
+      return
+    end
     assert(conn:exec(U("users"):SET({ score = 999 }):WHERE("id = ?", 1):to_sql()))
     local rows = conn:query("SELECT score FROM users WHERE id = 1")
     assert.equal(999, rows[1].score)
@@ -126,6 +130,10 @@ describe("integration round-trip (" .. conn.dialect .. ")", function()
   end)
 
   it("DELETE round-trips", function()
+    if conn.dialect == "clickhouse" then
+      pending("clickhouse Memory engine has no DELETE (lightweight delete needs MergeTree + flag)")
+      return
+    end
     assert(conn:exec(I("users"):COLS("id", "name", "status"):VALUES({ 98, "temp", 0 }):to_sql()))
     assert(conn:exec(D("users"):QUERY({ id = 98 }):to_sql()))
     local rows = conn:query("SELECT id FROM users WHERE id = 98")
