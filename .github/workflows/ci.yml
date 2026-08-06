@@ -139,6 +139,9 @@ jobs:
           sudo apt-get install -y libssl-dev
           luarocks install luasocket
           luarocks install lua-cjson
+      - name: Diagnose clickhouse reachability
+        run: |
+          curl -s -u default:clickhouse --data "SELECT 1" http://127.0.0.1:8123/ || echo "curl failed"
       - name: Run integration specs against ClickHouse over HTTP
         run: busted --helper=spec/helpers/init.lua spec/integration
         env:

@@ -42,7 +42,7 @@ end
 local function normalize_value(v)
   if type(v) == "string" then
     local n = tonumber(v)
-    if n and tostring(n) == v then
+    if n and (v:match("^%-?%d+$") or v:match("^%-?%d+%.%d+$")) then
       return n
     end
   end
@@ -411,7 +411,7 @@ local function connect_clickhouse()
   -- POST a raw query; returns body string or nil, err.
   local function post(self, sql)
     local resp = {}
-    local code = self._http.request{
+    local code, headers = self._http.request{
       url = self._url,
       method = "POST",
       source = self._ltn12.source.string(sql),
