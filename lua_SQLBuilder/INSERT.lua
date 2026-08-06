@@ -9,7 +9,19 @@ local fmt = string.format
 local tconcat = table.concat
 local tsort = table.sort
 
+-- 列数/行宽一致性校验（M4）：COLS 与 VALUES/DATA 的行宽必须匹配
+local function assert_insert_aligns(self)
+    if #self.cols == 0 then
+        return
+    end
+    for _, row in ipairs(self.values) do
+        assert(#row == #self.cols,
+            "INSERT row width (" .. #row .. ") does not match column count (" .. #self.cols .. ")")
+    end
+end
+
 function INSERT:__getInsertValue()
+    assert_insert_aligns(self)
     local t = {}
     for _, value in ipairs(self.values) do
         local row = {}
@@ -22,6 +34,7 @@ function INSERT:__getInsertValue()
 end
 
 function INSERT:__getPrepareInsertValue()
+    assert_insert_aligns(self)
     local t = {}
     local params = {}
     for _, value in ipairs(self.values) do
@@ -66,7 +79,8 @@ function INSERT:__renderUpsert()
     local dialect = self._dialect
     local upsert = dialect.upsert
     if not upsert then
-        error("dialect '" .. dialect.name .. "' has no upsert support (use mysql/mariadb/postgres/sqlite)", 2)
+        error("dialect '" .. dialect.name ..
+            "' has no upsert support (mysql/mariadb/postgres/sqlite/duckdb do)", 2)
     end
     local quote = dialect.quote_ident
     local keys = sort_keys(self.update)

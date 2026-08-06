@@ -23,8 +23,10 @@ local sql = sqlbuilder.SQLBuilder("SELECT * FROM user")
 - **Two output modes**: `to_sql()` renders inline SQL with dialect-aware string
   escaping; `to_prepare()` returns placeholder SQL plus bound parameters for
   injection-safe execution by your driver.
-- **Multi-dialect**: MySQL (default), PostgreSQL, SQLite — identifier quoting,
-  JSON path operators, upsert syntax and string escaping adapt automatically.
+- **Multi-dialect**: ANSI standard SQL by default; declare `mysql` / `postgres` /
+  `sqlite` / `mariadb` / `mssql` / `oracle` / `duckdb` / `clickhouse` per builder
+  or as the module default — identifier quoting, JSON path operators, upsert
+  syntax and string escaping adapt automatically.
 - **Deterministic**: table-style inputs are key-sorted; repeated renders are
   byte-identical (locked by cross-audit invariants).
 - **Verified**: CI runs the same suite against real MySQL 8, PostgreSQL 16 and
@@ -55,7 +57,13 @@ local sql, id = sqlbuilder.SQLBuilder("SELECT * FROM user")
 ### SELECT with QUERY and pagination
 
 ```lua
+-- default (ansi): double-quoted identifiers
 local sql = sqlbuilder.SELECT("*"):FROM("book"):QUERY({ user_id = 1, status = 1 })
+  :PAGE(2):PER(10):to_sql()
+-- SELECT * FROM book WHERE ("status" = 1 AND "user_id" = 1) LIMIT 10 OFFSET 10
+
+-- declared mysql: backticks
+local sql = sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("book"):QUERY({ user_id = 1, status = 1 })
   :PAGE(2):PER(10):to_sql()
 -- SELECT * FROM book WHERE (`status` = 1 AND `user_id` = 1) LIMIT 10 OFFSET 10
 ```
@@ -85,13 +93,20 @@ local sql = sqlbuilder.SQLBuilder("SELECT * FROM user")
 
 ```lua
 sqlbuilder.UPDATE("user"):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1)
-sqlbuilder.INSERT("user"):DATA({ id = 1, name = "n" }):ON_DUPLICATE_KEY_UPDATE({ score = 1 })
+sqlbuilder.INSERT("user"):DATA({ id = 1, name = "n" })
 sqlbuilder.DELETE("user"):QUERY({ id = 1 })
 ```
 
-For PostgreSQL / SQLite, upserts need the conflict target:
+Upserts are a dialect feature — declare one (the default `ansi` has no
+single-statement upsert):
 
 ```lua
+-- mysql / mariadb
+sqlbuilder.INSERT("likes", { dialect = "mysql" })
+  :DATA({ user_id = 1, like_count = 1 })
+  :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 })
+
+-- postgres / sqlite / duckdb: need the conflict target
 local b = sqlbuilder.INSERT("likes", { dialect = "postgres" })
   :DATA({ user_id = 1, like_count = 1 })
   :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 }, "user_id")
@@ -158,11 +173,19 @@ sqlbuilder.set_default_dialect("oracle")
 ## Security
 
 - `to_prepare()` binds parameters through your driver — the recommended path.
-- `to_sql()` escapes string values per dialect (MySQL backslash style;
-  PostgreSQL/SQLite single-quote doubling) so inline SQL is injection-safe
-  for values. Identifiers are quoted per dialect.
-- Raw query fragments you pass in (the `query` string itself) are rendered
-  verbatim; never interpolate untrusted text into them.
+- `to_sql()` escapes string values per dialect (MySQL/ClickHouse backslash style;
+  PostgreSQL/SQLite/SQL Server/Oracle/DuckDB single-quote doubling), including
+  JSON-encoded table values, so inline SQL is injection-safe for values.
+  Identifiers are quoted and delimiter-escaped per dialect.
+- **Trusted-fragment boundary** (by design, verified by adversarial audit):
+  the raw fragments you pass in are rendered verbatim and are **not** escaped —
+  `WHERE`/`HAVING`/`OR` query strings without placeholders, `FROM`/`FIELD`
+  arguments (they may carry aliases/expressions), `ORDER BY`/`GROUP BY`
+  arguments and `PROCEDURE`. Never interpolate untrusted text into them.
+- **Backslash-escaping dialects** (mysql/clickhouse) inherit the classic
+  multi-byte charset caveat (e.g. GBK `\xbf\x27`): connect with
+  `utf8mb4`/`utf8` and prefer `to_prepare()` for untrusted input.
+- Use `to_prepare()` whenever values come from user input.
 
 ## Testing
 

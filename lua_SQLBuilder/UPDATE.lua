@@ -70,6 +70,10 @@ end
 function UPDATE:TableOperator()
     local quote = self._dialect.quote_ident
     local sets = {}
+    -- table mode 先（与 PrepareTableOperator 的列序/参数序一致，M3）
+    for _, key in ipairs(sort_keys(self.setDataTable)) do
+        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.setDataTable[key], self._dialect))
+    end
     for _, v in ipairs(self.setData) do
         local field, params = v[1], v[2]
         if #params > 0 then
@@ -77,9 +81,6 @@ function UPDATE:TableOperator()
         else
             sets[#sets + 1] = field
         end
-    end
-    for _, key in ipairs(sort_keys(self.setDataTable)) do
-        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.setDataTable[key], self._dialect))
     end
     return fmt("UPDATE %s SET %s", self.tableName, tconcat(sets, ", "))
 end

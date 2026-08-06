@@ -16,6 +16,15 @@ function LIMIT:add(p1, p2)
         offset = p1
         count = p2
     end
+    -- 数值校验：offset/count 必须是非负数字，防注入与非法 SQL（M5）
+    if offset ~= nil and offset ~= "" then
+        offset = tonumber(offset)
+        assert(offset ~= nil and offset >= 0, "LIMIT offset must be a non-negative number, got: " .. tostring(p1))
+    end
+    if count ~= nil then
+        count = tonumber(count)
+        assert(count ~= nil and count >= 0, "LIMIT count must be a non-negative number, got: " .. tostring(count))
+    end
     self.limit = { offset, count }
 end
 

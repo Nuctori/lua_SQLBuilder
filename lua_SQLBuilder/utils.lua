@@ -68,7 +68,8 @@ function SQLUtils.render_value(v, dialect)
         return fmt("'%s'", dialect.escape_string(v))
     end
     if t == "table" then
-        return fmt("'%s'", get_json().encode(v))
+        -- JSON 先编码再转义：表值里的引号必须经方言转义（CRITICAL-1）
+        return fmt("'%s'", dialect.escape_string(get_json().encode(v)))
     end
     if t == "boolean" or t == "number" then
         return tostring(v)
@@ -118,8 +119,13 @@ function SQLUtils.Make_JsonQuery(tableName, query, dialect)
         end
     end
     local funcs = {}
-    for tName, tType in pairs(query) do
-        func(tName, tType, "", funcs)
+    local keys = {}
+    for tName in pairs(query) do
+        keys[#keys + 1] = tName
+    end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    for _, tName in ipairs(keys) do
+        func(tName, query[tName], "", funcs)
     end
     return funcs
 end

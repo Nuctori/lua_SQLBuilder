@@ -33,13 +33,13 @@ M.default = DEFAULT
 -------------------------------------------------------------------------------
 
 local function quote_ident_mysql(name)
-  return fmt("`%s`", name)
+  return fmt("`%s`", name:gsub("`", "``"))
 end
 local function quote_ident_ansi(name)
-  return fmt('"%s"', name)
+  return fmt('"%s"', name:gsub('"', '""'))
 end
 local function quote_ident_mssql(name)
-  return fmt("[%s]", name)
+  return fmt("[%s]", name:gsub("]", "]]"))
 end
 
 local mysql_escape_map = {
@@ -258,6 +258,18 @@ function M.resolve(name)
       " (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql, oracle, duckdb, clickhouse)", 2)
   end
   return dialect
+end
+
+--- Snapshot a dialect config: builders copy the fields at construction time,
+-- so later edits to `dialect.dialects.<name>` do not mutate existing
+-- builders (predictable behavior, adversarial audit M1).
+function M.snapshot(name)
+  local d = M.resolve(name)
+  local copy = {}
+  for k, v in pairs(d) do
+    copy[k] = v
+  end
+  return copy
 end
 
 function M.set_default(name)

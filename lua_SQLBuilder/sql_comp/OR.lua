@@ -11,6 +11,11 @@ function OR:_add(sqlObj)
 end
 
 function OR:add(sqlBuilder)
+    -- OR 子对象方言必须与父一致（混用转义约定会产出目标库无法解析的 SQL，M2）
+    if self._dialect and sqlBuilder._dialect and self._dialect.name ~= sqlBuilder._dialect.name then
+        error("OR sub-builder dialect '" .. sqlBuilder._dialect.name ..
+            "' does not match parent '" .. self._dialect.name .. "'", 3)
+    end
     -- OR 子对象只允许携带 WHERE/OR 条件；其它子句（ORDER/LIMIT/GROUP 等）
     -- 在 OR 上下文中无意义且会被静默丢弃 —— 显式报错（NB-8）
     for _, comp in ipairs({ "_order", "_limit", "_group", "_having" }) do

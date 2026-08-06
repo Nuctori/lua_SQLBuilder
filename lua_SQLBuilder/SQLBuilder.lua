@@ -41,7 +41,7 @@ end
 
 function SQLBuilder:init(TableOperator, opts)
     self._tableOperator = TableOperator
-    self._dialect = dialect_mod.resolve(opts and opts.dialect)
+    self._dialect = dialect_mod.snapshot(opts and opts.dialect)
     self._where = WHERE.new(self._dialect)
     self._or = OR.new(self._dialect)
     self._order = ORDER.new(self._dialect)

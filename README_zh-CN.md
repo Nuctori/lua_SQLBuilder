@@ -75,13 +75,19 @@ local sql = sqlbuilder.SQLBuilder("SELECT * FROM user")
 
 ```lua
 sqlbuilder.UPDATE("user"):SET({ score = 100, status = "pass" }):WHERE("id = ?", 1)
-sqlbuilder.INSERT("user"):DATA({ id = 1, name = "n" }):ON_DUPLICATE_KEY_UPDATE({ score = 1 })
+sqlbuilder.INSERT("user"):DATA({ id = 1, name = "n" })
 sqlbuilder.DELETE("user"):QUERY({ id = 1 })
 ```
 
-PostgreSQL / SQLite 的 upsert 需要冲突目标列：
+Upsert 是方言特性——需声明方言（默认 `ansi` 无单语句 upsert）：
 
 ```lua
+-- mysql / mariadb
+sqlbuilder.INSERT("likes", { dialect = "mysql" })
+  :DATA({ user_id = 1, like_count = 1 })
+  :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 })
+
+-- postgres / sqlite / duckdb：需冲突目标列
 local b = sqlbuilder.INSERT("likes", { dialect = "postgres" })
   :DATA({ user_id = 1, like_count = 1 })
   :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 }, "user_id")
@@ -123,8 +129,8 @@ JSON 算子：mysql/mariadb/ansi 用 `->>`；sqlite 用 `json_extract` + `CAST A
 
 ```lua
 local dialect = require "lua_SQLBuilder.dialect"
-dialect.dialects.oracle = dialect.dialects.ansi  -- 再调整字段
-sqlbuilder.set_default_dialect("oracle")
+dialect.dialects.db2 = dialect.dialects.ansi  -- 以未内置的数据库为例
+sqlbuilder.set_default_dialect("db2")
 ```
 
 ## 参数语义
@@ -137,8 +143,10 @@ sqlbuilder.set_default_dialect("oracle")
 ## 安全
 
 - `to_prepare()` 通过驱动绑定参数——推荐路径。
-- `to_sql()` 按方言转义字符串值（MySQL 反斜杠风格；PostgreSQL / SQLite 单引号翻倍），内联 SQL 对参数值防注入；标识符按方言加引号。
-- 你传入的 query 字符串本身是原样渲染的；不要把不可信文本拼进其中。
+- `to_sql()` 按方言转义字符串值（MySQL/ClickHouse 反斜杠风格；PostgreSQL/SQLite/SQL Server/Oracle/DuckDB 单引号翻倍），**含 JSON 编码的表值**，内联 SQL 对参数值防注入；标识符按方言加引号并转义定界符。
+- **可信片段边界**（by design，对抗性审计验证）：你传入的原始片段原样渲染、**不转义**——无占位符的 `WHERE`/`HAVING`/`OR` 查询串、`FROM`/`FIELD` 参数（可含别名/表达式）、`ORDER BY`/`GROUP BY` 参数、`PROCEDURE`。不要把不可信文本拼进其中。
+- **反斜杠转义方言**（mysql/clickhouse）继承多字节字符集经典隐患（如 GBK `\xbf\x27`）：连接使用 `utf8mb4`/`utf8`，不可信输入优先 `to_prepare()`。
+- 值来自用户输入时一律使用 `to_prepare()`。
 
 ## 测试
 

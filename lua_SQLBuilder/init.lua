@@ -5,6 +5,9 @@ local INSERT = require "lua_SQLBuilder.INSERT"
 local DELETE = require "lua_SQLBuilder.DELETE"
 local dialect = require "lua_SQLBuilder.dialect"
 
+-- The default dialect is ANSI standard SQL (see dialect.lua); declare a
+-- dialect per builder ({dialect=...}) or via set_default_dialect to enable
+-- dialect-specific features.
 local M = {
     SQLBuilder = SQLBuilder,
     SELECT = SELECT,
