@@ -73,6 +73,120 @@ jobs:
         env:
           LUA_SQLBUILDER_DB: sqlite
 
+  integration-duckdb:
+    name: duckdb integration (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.2", "5.3", "5.4"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
+      - name: Install duckdb driver (in-process, compiles the amalgamation)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          luarocks install luasql-duckdb
+      - name: Run integration specs against in-process DuckDB
+        run: busted --helper=spec/helpers/init.lua spec/integration
+        env:
+          LUA_SQLBUILDER_DB: duckdb
+
+  integration-clickhouse:
+    name: clickhouse integration (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.4"]
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        ports: ["8123:8123"]
+        options: >-
+          --health-cmd="wget -qO- http://localhost:8123/ping | grep -q Ok"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
+      - name: Install clickhouse HTTP deps (luasocket + cjson)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+          luarocks install luasocket
+          luarocks install lua-cjson
+      - name: Run integration specs against ClickHouse over HTTP
+        run: busted --helper=spec/helpers/init.lua spec/integration
+        env:
+          LUA_SQLBUILDER_DB: clickhouse
+          CLICKHOUSE_HOST: 127.0.0.1
+          CLICKHOUSE_PORT: "8123"
+
+  integration-oracle:
+    name: oracle integration (Lua ${{ matrix.lua }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.4"]
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: app
+          APP_USER: app
+          APP_USER_PASSWORD: app
+        ports: ["1521:1521"]
+        options: >-
+          --health-cmd="healthcheck.sh"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=30
+          --health-start-period=60s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
+      - name: Install Oracle Instant Client + luasql-oci8 (best-effort)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          sudo mkdir -p /opt/oracle/instantclient
+          cd /opt/oracle/instantclient
+          wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || true
+          wget -q https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-sdk-linux.x64-21.14.0.0.0dbru.zip || true
+          unzip -o '*.zip' || true
+          sudo sh -c 'echo /opt/oracle/instantclient/instantclient_21_14 > /etc/ld.so.conf.d/oracle.conf'
+          sudo ldconfig || true
+          export LD_LIBRARY_PATH=/opt/oracle/instantclient/instantclient_21_14:$LD_LIBRARY_PATH
+          luarocks install luasql-oci8 \
+            OCI8_INCDIR=/opt/oracle/instantclient/instantclient_21_14/sdk/include \
+            OCI8_LIBDIR=/opt/oracle/instantclient/instantclient_21_14 || true
+      - name: Run integration specs against Oracle
+        run: busted --helper=spec/helpers/init.lua spec/integration
+        env:
+          LD_LIBRARY_PATH: /opt/oracle/instantclient/instantclient_21_14
+          LUA_SQLBUILDER_DB: oracle
+          ORACLE_USER: app
+          ORACLE_PASSWORD: app
+          ORACLE_HOST: 127.0.0.1
+          ORACLE_PORT: "1521"
+          ORACLE_SERVICE: FREEPDB1
+
   integration-servers:
     name: ${{ matrix.db }} integration (Lua ${{ matrix.lua }})
     runs-on: ubuntu-latest
