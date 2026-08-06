@@ -148,7 +148,8 @@ end)
 
 describe("audit: escaping round-trip", function()
   it("prepare mode keeps quotes out of the SQL (driver escapes)", function()
-    local sql = SQLBuilder.INSERT("user", { dialect = "mysql" }):COLS("id", "name"):VALUES({ 1, "O'Brien" }):to_prepare()
+    local sql = SQLBuilder.INSERT("user", { dialect = "mysql" })
+      :COLS("id", "name"):VALUES({ 1, "O'Brien" }):to_prepare()
     assert.equal("INSERT INTO user (`id`, `name`) VALUES (?, ?)", sql)
   end)
 

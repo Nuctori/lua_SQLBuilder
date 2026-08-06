@@ -17,13 +17,15 @@ describe("SELECT", function()
   end)
 
   it("combines QUERY with PAGE/PER pagination", function()
-    local sql = SELECT("*", { dialect = "mysql" }):FROM("book"):QUERY({ user_id = 1, status = 1 }):PAGE(10):PER(2):to_sql()
+    local sql = SELECT("*", { dialect = "mysql" }):FROM("book")
+      :QUERY({ user_id = 1, status = 1 }):PAGE(10):PER(2):to_sql()
     -- page 10, per 2 → offset (10-1)*2 = 18
     assert.equal("SELECT * FROM book WHERE (`status` = 1 AND `user_id` = 1) LIMIT 2 OFFSET 18", sql)
   end)
 
   it("renders JSON queries with the dialect operator", function()
-    local sql = SELECT("*", { dialect = "mysql" }):FROM("book"):QUERY({ user_id = 1, status = 1, json = { star = 5 } }):to_sql()
+    local sql = SELECT("*", { dialect = "mysql" }):FROM("book")
+      :QUERY({ user_id = 1, status = 1, json = { star = 5 } }):to_sql()
     assert.equal(
       "SELECT * FROM book WHERE (`json`->>'$.star' = '5' AND `status` = 1 AND `user_id` = 1)",
       sql)
