@@ -101,18 +101,40 @@ local b = sqlbuilder.INSERT("likes", { dialect = "postgres" })
 
 ## Dialects
 
-Pick a dialect per builder (trailing options table) or set the module default:
+Dialects are **configuration** — the default is `ansi` (standard SQL) and no
+dialect-specific features are emitted unless one is declared. Declare per
+builder (trailing options table) or set the module default:
 
 ```lua
 local sqlbuilder = require "lua_SQLBuilder"
 
-sqlbuilder.SELECT("*", { dialect = "postgres" }):FROM("user"):QUERY({ id = 1 })
--- SELECT * FROM user WHERE ("id" = 1)
+-- per-instance: declared dialect adds its features (backticks, ->>, ...)
+sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ id = 1 })
+-- SELECT * FROM user WHERE (`id` = 1)
 
-sqlbuilder.set_default_dialect("sqlite")
+-- module-wide default
+sqlbuilder.set_default_dialect("postgres")
 ```
 
-Supported dialects: `mysql` (default), `postgres`, `sqlite`.
+Built-in presets (verified in CI for `mysql`/`postgres`/`sqlite`):
+
+| dialect | identifiers | escaping | upsert | LIMIT |
+|---------|-------------|----------|--------|-------|
+| `ansi` (default) | `"x"` | `''` doubling | — | `LIMIT n OFFSET m` |
+| `mysql` / `mariadb` | `` `x` `` | backslash | `ON DUPLICATE KEY UPDATE` | `LIMIT n OFFSET m` |
+| `postgres` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
+| `sqlite` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
+| `mssql` | `[x]` | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+
+For a database without a preset, copy a close preset and adjust the fields
+(they are plain config: `quote_ident`, `json_path`, `escape_string`,
+`render_limit`, `upsert`):
+
+```lua
+local dialect = require "lua_SQLBuilder.dialect"
+dialect.dialects.oracle = dialect.dialects.ansi  -- then tweak fields
+sqlbuilder.set_default_dialect("oracle")
+```
 
 ## Parameter semantics
 
