@@ -27,7 +27,8 @@ describe("dialect", function()
   it("resolve rejects unknown dialects", function()
     assert.has_error(function()
       dialect_mod.resolve("oracle9")
-    end, "unknown dialect: oracle9 (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql, oracle, duckdb, clickhouse)")
+    end, "unknown dialect: oracle9 (built-ins: ansi, mysql, mariadb, postgres, "
+      .. "sqlite, mssql, oracle, duckdb, clickhouse)")
   end)
 
   it("per-instance opts override the module default", function()
