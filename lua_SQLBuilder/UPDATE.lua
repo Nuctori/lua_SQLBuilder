@@ -27,16 +27,53 @@ local function sort_keys(t)
     return keys
 end
 
+-- 标量内联渲染（与 WHERE 一致：字符串引号、数字/布尔裸、userdata 为 NULL）
+local function render_scalar(v)
+    local t = type(v)
+    if t == "string" then
+        return fmt("'%s'", v)
+    elseif t == "number" or t == "boolean" then
+        return tostring(v)
+    elseif t == "userdata" then
+        return "NULL"
+    end
+    error("unsupported SET parameter type: " .. tostring(t), 3)
+end
+
+-- 把表达式里的 ? 逐个替换为内联值（函数替换，避免 % 解释）
+local function render_inline_expr(expr, params)
+    local i = 0
+    return string.gsub(expr, "%?", function()
+        i = i + 1
+        local p = params[i]
+        if p == nil then
+            error(fmt("missing parameter for placeholder %d in %q", i, expr), 3)
+        end
+        return render_scalar(p)
+    end)
+end
+
+-- prepare 模式：? 逐个保留为占位符，参数平铺
+local function render_prepare_expr(expr, params, out)
+    local i = 0
+    return string.gsub(expr, "%?", function()
+        i = i + 1
+        local p = params[i]
+        if p == nil then
+            error(fmt("missing parameter for placeholder %d in %q", i, expr), 3)
+        end
+        out[#out + 1] = p
+        return "?"
+    end)
+end
+
 function UPDATE:TableOperator()
     local quote = self._dialect.quote_ident
     local sets = {}
     for _, v in ipairs(self.setData) do
-        local field, val = v[1], v[2]
-        if val then
-            if type(val) == "userdata" then
-                val = "NULL"
-            end
-            sets[#sets + 1] = string.gsub(field, "?", function() return tostring(val) end, 1)
+        local field, params = v[1], v[2]
+        if #params > 0 then
+            sets[#sets + 1] = render_inline_expr(field, params)
         else
             sets[#sets + 1] = field
         end
@@ -59,26 +96,26 @@ function UPDATE:PrepareTableOperator()
         fields[#fields + 1] = fmt("%s = ?", quote(key))
         params[#params + 1] = val
     end
-    -- string mode: keep current behavior (placeholder handling fixed in phase 1)
+    -- string mode: one ? per param, params flattened in order
     for _, v in ipairs(self.setData) do
-        local field, val = v[1], v[2]
-        if val ~= nil then
-            fields[#fields + 1] = fmt("%s = ?", field)
-            params[#params + 1] = val
+        local field, expr_params = v[1], v[2]
+        if #expr_params > 0 then
+            fields[#fields + 1] = render_prepare_expr(field, expr_params, params)
         else
-            fields[#fields + 1] = fmt("%s?", field)
-            params[#params + 1] = ""
+            fields[#fields + 1] = field
         end
     end
     return fmt("UPDATE %s SET %s", self.tableName, tconcat(fields, ", ")), params
 end
 
-function UPDATE:SET(setData, param)
+---@param setData table|string 表模式（字段→值）或表达式（含 ? 占位符）
+---@param ... 表达式模式的参数，与占位符一一对应
+function UPDATE:SET(setData, ...)
     if type(setData) == "table" then
         self.setDataTable = setData
     else
         assert(type(setData) == "string", "setData must table or string:" .. type(setData))
-        self.setData[#self.setData + 1] = { setData, param }
+        self.setData[#self.setData + 1] = { setData, { ... } }
     end
     return self
 end

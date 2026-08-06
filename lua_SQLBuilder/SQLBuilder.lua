@@ -52,8 +52,8 @@ function SQLBuilder:PrepareTableOperator()
     return self:TableOperator()
 end
 
-function SQLBuilder:WHERE(query, param)
-    self._where:add(query, param)
+function SQLBuilder:WHERE(query, ...)
+    self._where:add(query, ...)
     return self
 end
 
@@ -63,7 +63,12 @@ function SQLBuilder:OR(sqlBuilder)
 end
 
 function SQLBuilder:ORDER_BY(fieldName, sortType)
-    self._order:add(fieldName, sortType)
+    self._order:add(fieldName)
+    if sortType then
+        local st = tostring(sortType):upper()
+        assert(st == "DESC" or st == "ASC", "sortType must be 'DESC' or 'ASC', got: " .. tostring(sortType))
+        self._order:desc(st == "DESC")
+    end
     return self
 end
 
@@ -128,6 +133,7 @@ function SQLBuilder:to_prepare()
     local params = {}
     local headSql, params1 = self:PrepareTableOperator()
     local whereSql, params2 = self._where:to_prepare()
+    local havingSql, params4 = self._having:to_prepare()
     for _, v in ipairs(params1 or {}) do
         params[#params + 1] = v
     end
@@ -138,12 +144,15 @@ function SQLBuilder:to_prepare()
     for _, v in ipairs(params3 or {}) do
         params[#params + 1] = v
     end
+    for _, v in ipairs(params4 or {}) do
+        params[#params + 1] = v
+    end
     local sql = {
         headSql,
         MakeSql("WHERE", whereSql),
         MakeSql("OR",orSql),
         MakeSql("GROUP BY",self._group:to_sql()),
-        MakeSql("HAVING",self._having:to_sql()),
+        MakeSql("HAVING",havingSql),
         MakeSql("ORDER BY",self._order:to_sql()),
         MakeSql("LIMIT",self._limit:to_sql()),
         MakeSql("PROCEDURE", self._procedure),

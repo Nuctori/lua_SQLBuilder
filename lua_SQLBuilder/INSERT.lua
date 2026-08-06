@@ -137,6 +137,10 @@ function INSERT:VALUES(...)
 end
 
 function INSERT:DATA(t)
+    -- DATA owns the columns and rows: reset any prior COLS/VALUES/DATA so
+    -- mixing calls cannot misalign columns (A10/NB-14)
+    self.cols = {}
+    self.values = {}
     local value = {}
     self.values[1] = value
     -- 给插入数据的字段排序，确保生成一致性
