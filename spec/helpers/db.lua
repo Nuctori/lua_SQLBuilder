@@ -411,7 +411,9 @@ local function connect_clickhouse()
   -- POST a raw query; returns body string or nil, err.
   local function post(self, sql)
     local resp = {}
-    local code, headers = self._http.request{
+    -- luasocket table-form returns (1, code, headers, status): the status
+    -- code is the SECOND return value
+    local _, code = self._http.request{
       url = self._url,
       method = "POST",
       source = self._ltn12.source.string(sql),
