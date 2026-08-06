@@ -451,7 +451,8 @@ local function connect_clickhouse()
     end
     local rows = {}
     for line in body:gmatch("[^\n]+") do
-      local ok_decode, row = pcall(self._cjson.decode, self._cjson, line)
+      -- cjson.decode is a plain function (not a method): pass only the line
+      local ok_decode, row = pcall(self._cjson.decode, line)
       if not ok_decode then
         return nil, "clickhouse JSON parse failed: " .. tostring(row)
       end
