@@ -19,9 +19,9 @@ function WHERE:to_sql()
             if type(param) == "string" then
                 param = fmt("'%s'", param)
             elseif type(param) == "table" then
-                for i, v in ipairs(param) do
-                    if type(v) == "string" then
-                        param[i] = fmt("'%s'", v)
+                for i, pv in ipairs(param) do
+                    if type(pv) == "string" then
+                        param[i] = fmt("'%s'", pv)
                     end
                 end
                 param = fmt("(%s)", table.concat(param, ","))

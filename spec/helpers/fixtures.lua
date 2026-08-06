@@ -3,6 +3,8 @@
 
 local fixtures = {}
 
+local unpack = table.unpack or unpack
+
 fixtures.tables = { "users", "book", "likes", "chapter" }
 
 local schemas = {
@@ -63,7 +65,7 @@ function fixtures.prepare(conn)
       local placeholders = {}
       for i = 1, #row do placeholders[i] = "?" end
       local sql = "INSERT INTO " .. name .. " VALUES (" .. table.concat(placeholders, ", ") .. ")"
-      local ok, err = conn:exec(sql, table.unpack(row))
+      local ok, err = conn:exec(sql, unpack(row))
       assert(ok, "seed " .. name .. ": " .. tostring(err))
     end
   end

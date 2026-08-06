@@ -13,7 +13,7 @@ local function class(name, super)
         __call = function(self, ...) return self.new(...) end})
 
     if not cls.ctor then
-        cls.ctor = function(self, ...) end
+        cls.ctor = function(_) end
     end
 
     cls.__meta = {__index = cls}

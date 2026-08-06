@@ -16,6 +16,8 @@
 
 local db = {}
 
+local unpack = table.unpack or unpack
+
 local env = function(name, default) return os.getenv(name) or default end
 
 db.current = function()
@@ -75,7 +77,7 @@ local function connect_sqlite()
     if n > 0 then
       local stmt = assert(self._db:prepare(sql))
       local args = { ... }
-      local ok_bind, err = stmt:bind(table.unpack(args))
+      local ok_bind, err = stmt:bind(unpack(args))
       if not ok_bind then
         stmt:finalize()
         return nil, err

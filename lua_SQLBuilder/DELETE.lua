@@ -32,7 +32,7 @@ function DELETE:QUERY(queryTable)
         local query = queryTable[field]
         if type(query) == "table" then -- json 查询
             local jsonSQLs = utils.Make_JsonQuery(field, query, self._dialect)
-            for i, jsonSQL in ipairs(jsonSQLs) do
+            for _, jsonSQL in ipairs(jsonSQLs) do
                 local jfield, jquery = jsonSQL[1], jsonSQL[2]
                 self:WHERE(jfield, jquery)
             end

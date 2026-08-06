@@ -2,6 +2,7 @@ local SQLUtils = {}
 local fmt = string.format
 local tsort = table.sort
 local tconcat = table.concat
+local unpack = table.unpack or unpack
 local json = require "lua_SQLBuilder.json"
 local dialect_mod = require "lua_SQLBuilder.dialect"
 
@@ -52,7 +53,7 @@ function SQLUtils.ORM_warpper(ormFunc)
             params[i] = param
         end
 
-        return ormFunc(table.unpack(params))
+        return ormFunc(unpack(params))
     end
 end
 

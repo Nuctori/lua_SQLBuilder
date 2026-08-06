@@ -11,6 +11,7 @@ local LIMIT = require "lua_SQLBuilder.sql_comp.LIMIT"
 local SQLBuilder = class("SQLBuilder")
 
 local fmt = string.format
+local unpack = table.unpack or unpack
 
 local function MakeSql(op, sql)
     if sql and sql ~= "" then
@@ -148,7 +149,7 @@ function SQLBuilder:to_prepare()
         MakeSql("PROCEDURE", self._procedure),
         self._forUpdate and " FOR UPDATE" or "",
     }
-    return table.concat(sql, ""), table.unpack(params)
+    return table.concat(sql, ""), unpack(params)
 end
 
 return SQLBuilder

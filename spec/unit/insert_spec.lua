@@ -49,9 +49,9 @@ describe("INSERT", function()
     local sql = INSERT("likes", { dialect = "postgres" }):DATA({ user_id = 1, like_count = 1 })
       :ON_DUPLICATE_KEY_UPDATE({ like_count = 1 }, "user_id")
       :to_sql()
-    assert.equal(
-      'INSERT INTO likes ("like_count", "user_id") VALUES (1, 1) ON CONFLICT ("user_id") DO UPDATE SET "like_count" = EXCLUDED."like_count"',
-      sql)
+    local expected = 'INSERT INTO likes ("like_count", "user_id") VALUES (1, 1) '
+      .. 'ON CONFLICT ("user_id") DO UPDATE SET "like_count" = EXCLUDED."like_count"'
+    assert.equal(expected, sql)
   end)
 
   it("requires conflict target on non-mysql dialects", function()

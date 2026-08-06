@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: "5.4"
       - uses: leafo/gh-actions-luarocks@v4
@@ -34,7 +34,7 @@ jobs:
         lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
     steps:
       - uses: actions/checkout@v4
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
@@ -51,10 +51,11 @@ jobs:
         lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
     steps:
       - uses: actions/checkout@v4
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
       - name: Install sqlite driver
         run: |
           sudo apt-get update
@@ -100,10 +101,11 @@ jobs:
           --health-retries=20
     steps:
       - uses: actions/checkout@v4
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
+      - run: luarocks install busted
       - name: Install DB drivers
         run: |
           sudo apt-get update

@@ -8,6 +8,8 @@ local db = require "spec.helpers.db"
 local fixtures = require "spec.helpers.fixtures"
 local SQLBuilder = require "lua_SQLBuilder"
 
+local unpack = table.unpack or unpack
+
 local conn, reason = db.connect()
 if not conn then
   describe("integration round-trip (skipped)", function()
@@ -80,7 +82,7 @@ describe("integration round-trip (" .. conn.dialect .. ")", function()
 
   it("INSERT round-trips (prepare path with quotes in value)", function()
     local sql, row = I("users"):COLS("id", "name", "status"):VALUES({ 99, "O'Brien", 1 }):to_prepare()
-    assert(conn:exec(sql, table.unpack(row)))
+    assert(conn:exec(sql, unpack(row)))
     local rows = conn:query("SELECT name FROM users WHERE id = 99")
     assert.equal("O'Brien", rows[1].name)
   end)

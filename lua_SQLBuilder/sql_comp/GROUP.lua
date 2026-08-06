@@ -1,6 +1,5 @@
 local class = require "lua_SQLBuilder.class"
 local ORDER = class("ORDER")
-local fmt = string.format
 
 function ORDER:ctor(dialect)
     self.groups = {}

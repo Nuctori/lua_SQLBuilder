@@ -3,7 +3,8 @@
 -- Default dirs: spec/unit spec/production spec/integration
 -- DB gating for integration is env-based (LUA_SQLBUILDER_DB, default sqlite).
 
-package.path = "./?.lua;./?/init.lua;" .. package.path
+local helper = dofile("spec/helpers/init.lua")
+package.path = helper.root .. "/?.lua;" .. helper.root .. "/?/init.lua;" .. package.path
 
 local minibusted = require "spec.helpers.minibusted"
 
