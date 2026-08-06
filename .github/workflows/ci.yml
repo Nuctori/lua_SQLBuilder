@@ -38,9 +38,16 @@ jobs:
         with:
           luaVersion: ${{ matrix.lua }}
       - uses: leafo/gh-actions-luarocks@v4
-      - run: luarocks install busted
       - name: Run unit specs (pure SQL generation, no DB)
-        run: busted --helper=spec/helpers/init.lua spec/unit spec/audit spec/production
+        run: |
+          if [ "${{ matrix.lua }}" = "luajit-2.1" ]; then
+            # LuaJIT cannot load luarocks' large manifests (>65536 constants);
+            # the zero-dependency runner needs no rocks at all.
+            lua spec/run.lua spec/unit spec/audit spec/production
+          else
+            luarocks install busted
+            busted --helper=spec/helpers/init.lua spec/unit spec/audit spec/production
+          fi
 
   integration-sqlite:
     name: sqlite integration (Lua ${{ matrix.lua }})
@@ -48,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lua: ["5.1", "5.2", "5.3", "5.4", "luajit-2.1"]
+        lua: ["5.1", "5.2", "5.3", "5.4"]
     steps:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v13
@@ -72,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lua: ["5.1", "5.2", "5.3", "5.4", "luajit-2.1"]
+        lua: ["5.1", "5.2", "5.3", "5.4"]
         db: [mysql, postgres]
     services:
       mysql:
@@ -112,9 +119,11 @@ jobs:
             sudo apt-get install -y libmysqlclient-dev
             luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql MYSQL_LIBDIR=/usr/lib/x86_64-linux-gnu
           else
-            # pgmoon is pure Lua (needs only luasocket); no libpq headers required
+            # pgmoon is pure Lua; luaossl provides the crypto (SCRAM auth
+            # random bytes) that pgmoon requires on 5.3+/LuaJIT
             sudo apt-get install -y libssl-dev
             luarocks install luasocket
+            luarocks install luaossl
             luarocks install pgmoon
           fi
       - name: Run integration specs against ${{ matrix.db }}

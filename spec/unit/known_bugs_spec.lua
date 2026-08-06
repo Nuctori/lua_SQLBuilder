@@ -1,4 +1,4 @@
--- Bootstrap: ensure the project root is on package.path (works with busted on every Lua version, incl. 5.1 where busted rewrites the path)
+-- Bootstrap: project root on package.path (busted rewrites it on Lua 5.1)
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 -- Known-bug inventory. Each `it` is `pending` until the bug is fixed; fixing

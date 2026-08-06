@@ -87,7 +87,7 @@ local function connect_sqlite()
     if n == 0 then
       local code, errmsg = self._db:exec(sql)
       if code ~= 0 then
-        return nil, errmsg
+        return nil, errmsg or tostring(code)
       end
       return true
     end
