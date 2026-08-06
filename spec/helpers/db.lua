@@ -119,17 +119,20 @@ local function connect_sqlite()
   end
 
   function conn:query(sql, ...)
+    -- nrows returns (iterator, state, control) for the generic for; wrap the
+    -- whole loop so the triple survives and failures carry the SQL.
     local rows = {}
-    local ok_q, iter = pcall(self._db.nrows, self._db, sql, ...)
-    if not ok_q then
-      return nil, iter
-    end
-    for row in iter do
-      local normalized = {}
-      for k, v in pairs(row) do
-        normalized[k] = normalize_value(v)
+    local ok_iter, iter_err = pcall(function()
+      for row in self._db:nrows(sql, ...) do
+        local normalized = {}
+        for k, v in pairs(row) do
+          normalized[k] = normalize_value(v)
+        end
+        rows[#rows + 1] = normalized
       end
-      rows[#rows + 1] = normalized
+    end)
+    if not ok_iter then
+      return nil, "query failed (" .. tostring(iter_err) .. "): " .. tostring(sql)
     end
     return rows
   end
@@ -191,10 +194,11 @@ local function connect_pgmoon()
   function conn:exec(sql, ...)
     local n = select("#", ...)
     if n > 0 then
-      sql, exec_err = pg_convert(sql, n)
-      if not sql then
-        return nil, exec_err
+      local converted, convert_err = pg_convert(sql, n)
+      if not converted then
+        return nil, convert_err
       end
+      sql = converted
     end
     local res, err = self._pg:query(sql, ...)
     if not res then
@@ -206,10 +210,11 @@ local function connect_pgmoon()
   function conn:query(sql, ...)
     local n = select("#", ...)
     if n > 0 then
-      sql, query_err = pg_convert(sql, n)
-      if not sql then
-        return nil, query_err
+      local converted, convert_err = pg_convert(sql, n)
+      if not converted then
+        return nil, convert_err
       end
+      sql = converted
     end
     local res, err = self._pg:query(sql, ...)
     if not res then

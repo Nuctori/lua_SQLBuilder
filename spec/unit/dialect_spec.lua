@@ -21,7 +21,7 @@ describe("dialect", function()
   it("resolve rejects unknown dialects", function()
     assert.has_error(function()
       dialect_mod.resolve("oracle")
-    end, "unknown dialect")
+    end, "unknown dialect: oracle (supported: mysql, postgres, sqlite)")
   end)
 
   it("per-instance opts override the module default", function()

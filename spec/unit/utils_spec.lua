@@ -65,7 +65,7 @@ describe("utils.render_value", function()
   it("errors on unsupported types", function()
     assert.has_error(function()
       utils.render_value(print)
-    end, "unsupported value type")
+    end, "unsupported value type: function")
   end)
 end)
 
