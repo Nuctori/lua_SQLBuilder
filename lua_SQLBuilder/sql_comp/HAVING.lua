@@ -17,10 +17,10 @@ local function count_placeholders(query)
     return select(2, string.gsub(query, "%?", ""))
 end
 
-local function render_scalar(v)
+local function render_scalar(dialect, v)
     local t = type(v)
     if t == "string" then
-        return fmt("'%s'", v)
+        return fmt("'%s'", dialect.escape_string(v))
     elseif t == "number" or t == "boolean" then
         return tostring(v)
     elseif t == "userdata" then
@@ -44,7 +44,7 @@ function HAVING:to_sql()
                 if p == nil then
                     error(fmt("missing parameter for placeholder %d in %q", i, query), 3)
                 end
-                return render_scalar(p)
+                return render_scalar(self._dialect, p)
             end)
         end
     end

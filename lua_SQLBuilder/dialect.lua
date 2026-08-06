@@ -12,6 +12,34 @@ local M = {}
 local DEFAULT = "mysql"
 M.default = DEFAULT
 
+-- MySQL string escaping (backslash style). Inside single-quoted literals
+-- double quotes are literal and need no escaping.
+local mysql_escape_map = {
+  ['\0'] = "\\0",
+  ['\b'] = "\\b",
+  ['\n'] = "\\n",
+  ['\r'] = "\\r",
+  ['\t'] = "\\t",
+  ['\26'] = "\\Z",
+  ['\\'] = "\\\\",
+  ["'"] = "\\'",
+}
+
+local function escape_mysql(s)
+  local out = {}
+  for i = 1, #s do
+    local c = s:sub(i, i)
+    out[#out + 1] = mysql_escape_map[c] or c
+  end
+  return table.concat(out)
+end
+
+-- ANSI string escaping (PostgreSQL with standard_conforming_strings=on,
+-- SQLite): single quotes are doubled, backslash is literal.
+local function escape_ansi(s)
+  return s:gsub("'", "''")
+end
+
 local function quote_ident_mysql(name)
   return fmt("`%s`", name)
 end
@@ -55,6 +83,7 @@ local dialects = {
     name = "mysql",
     quote_ident = quote_ident_mysql,
     json_path = json_path_mysql,
+    escape_string = escape_mysql,
     upsert = {
       keyword = "ON DUPLICATE KEY UPDATE",
       needs_conflict = false,
@@ -64,6 +93,7 @@ local dialects = {
     name = "postgres",
     quote_ident = quote_ident_ansi,
     json_path = json_path_postgres,
+    escape_string = escape_ansi,
     upsert = {
       keyword = "ON CONFLICT DO UPDATE",
       needs_conflict = true,
@@ -74,6 +104,7 @@ local dialects = {
     name = "sqlite",
     quote_ident = quote_ident_ansi,
     json_path = json_path_sqlite,
+    escape_string = escape_ansi,
     upsert = {
       keyword = "ON CONFLICT DO UPDATE",
       needs_conflict = true,

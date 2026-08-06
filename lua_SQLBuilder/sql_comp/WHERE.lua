@@ -13,11 +13,11 @@ function WHERE:add(query, ...)
     self.conditions[#self.conditions + 1] = { query = query, params = { ... } }
 end
 
--- 单个标量值的内联渲染（to_sql 模式；转义在 phase 2 统一接入）
-local function render_scalar(v)
+-- 单个标量值的内联渲染（to_sql 模式）：字符串按方言转义后加引号
+local function render_scalar(dialect, v)
     local t = type(v)
     if t == "string" then
-        return fmt("'%s'", v)
+        return fmt("'%s'", dialect.escape_string(v))
     elseif t == "number" or t == "boolean" then
         return tostring(v)
     elseif t == "userdata" then
@@ -32,7 +32,7 @@ end
 
 -- 内联替换：把 query 里的 ? 逐个替换为渲染后的参数。
 -- table 参数按 IN 语义渲染为 (v1, v2, ...)。
-local function render_inline(query, params)
+local function render_inline(dialect, query, params)
     local i = 0
     local out = string.gsub(query, "%?", function()
         i = i + 1
@@ -43,11 +43,11 @@ local function render_inline(query, params)
         if type(p) == "table" then
             local vals = {}
             for _, v in ipairs(p) do
-                vals[#vals + 1] = render_scalar(v)
+                vals[#vals + 1] = render_scalar(dialect, v)
             end
             return fmt("(%s)", table.concat(vals, ", "))
         end
-        return render_scalar(p)
+        return render_scalar(dialect, p)
     end)
     return out, i
 end
@@ -61,7 +61,7 @@ function WHERE:to_sql()
             -- 无占位符条件（如 JOIN 片段）原样透传
             t_concat[#t_concat + 1] = query
         else
-            local rendered = render_inline(query, params)
+            local rendered = render_inline(self._dialect, query, params)
             t_concat[#t_concat + 1] = rendered
         end
     end

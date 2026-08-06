@@ -14,7 +14,7 @@ function INSERT:__getInsertValue()
     for _, value in ipairs(self.values) do
         local row = {}
         for i, v in ipairs(value) do
-            row[i] = render_value(v)
+            row[i] = render_value(v, self._dialect)
         end
         t[#t + 1] = fmt("(%s)", tconcat(row, ", "))
     end
@@ -88,7 +88,7 @@ function INSERT:__renderUpsert()
     end
     local sets = {}
     for _, key in ipairs(keys) do
-        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.update[key]))
+        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.update[key], self._dialect))
     end
     return "ON DUPLICATE KEY UPDATE " .. tconcat(sets, ", ")
 end

@@ -27,11 +27,11 @@ local function sort_keys(t)
     return keys
 end
 
--- 标量内联渲染（与 WHERE 一致：字符串引号、数字/布尔裸、userdata 为 NULL）
-local function render_scalar(v)
+-- 标量内联渲染（与 WHERE 一致：字符串按方言转义后加引号）
+local function render_scalar(dialect, v)
     local t = type(v)
     if t == "string" then
-        return fmt("'%s'", v)
+        return fmt("'%s'", dialect.escape_string(v))
     elseif t == "number" or t == "boolean" then
         return tostring(v)
     elseif t == "userdata" then
@@ -41,7 +41,7 @@ local function render_scalar(v)
 end
 
 -- 把表达式里的 ? 逐个替换为内联值（函数替换，避免 % 解释）
-local function render_inline_expr(expr, params)
+local function render_inline_expr(dialect, expr, params)
     local i = 0
     return string.gsub(expr, "%?", function()
         i = i + 1
@@ -49,7 +49,7 @@ local function render_inline_expr(expr, params)
         if p == nil then
             error(fmt("missing parameter for placeholder %d in %q", i, expr), 3)
         end
-        return render_scalar(p)
+        return render_scalar(dialect, p)
     end)
 end
 
@@ -73,13 +73,13 @@ function UPDATE:TableOperator()
     for _, v in ipairs(self.setData) do
         local field, params = v[1], v[2]
         if #params > 0 then
-            sets[#sets + 1] = render_inline_expr(field, params)
+            sets[#sets + 1] = render_inline_expr(self._dialect, field, params)
         else
             sets[#sets + 1] = field
         end
     end
     for _, key in ipairs(sort_keys(self.setDataTable)) do
-        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.setDataTable[key]))
+        sets[#sets + 1] = fmt("%s = %s", quote(key), render_value(self.setDataTable[key], self._dialect))
     end
     return fmt("UPDATE %s SET %s", self.tableName, tconcat(sets, ", "))
 end

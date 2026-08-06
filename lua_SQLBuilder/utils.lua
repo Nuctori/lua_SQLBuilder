@@ -65,15 +65,18 @@ function SQLUtils.ORM_warpper(ormFunc)
 end
 
 --- Render a literal value for inline SQL (to_sql mode).
--- Strings/JSON are single-quoted; NULLs and userdata become NULL.
--- NOTE: does NOT escape yet — escaping is applied in phase 2.
-function SQLUtils.render_value(v)
+-- Strings are single-quoted with dialect-aware escaping; NULLs and userdata
+-- become NULL; tables are JSON-encoded.
+---@param v any
+---@param dialect table|nil 方言配置（默认 mysql）
+function SQLUtils.render_value(v, dialect)
+    dialect = dialect or dialect_mod.resolve()
     if v == nil then
         return "NULL"
     end
     local t = type(v)
     if t == "string" then
-        return fmt("'%s'", v)
+        return fmt("'%s'", dialect.escape_string(v))
     end
     if t == "table" then
         return fmt("'%s'", json.encode(v))
