@@ -180,7 +180,7 @@ jobs:
       - name: Install Oracle Instant Client + luasql-oci8 (best-effort)
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip
+          sudo apt-get install -y wget unzip libaio1t64 libnsl2
           sudo mkdir -p /opt/oracle/instantclient
           cd /opt/oracle/instantclient
           wget https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basiclite-linux.x64-21.14.0.0.0dbru.zip || echo "basiclite download failed"
@@ -200,7 +200,9 @@ jobs:
             ls -la "$IC_DIR" 2>/dev/null | head -8 || echo "no instantclient dir"
           fi
       - name: Run integration specs against Oracle
-        run: busted --helper=spec/helpers/init.lua spec/integration
+        run: |
+          lua -e "local ok, err = pcall(require, 'luasql.oci8'); print('oci8 require:', ok, err)"
+          busted --helper=spec/helpers/init.lua spec/integration
         env:
           LD_LIBRARY_PATH: /opt/oracle/instantclient/instantclient_21_14
           LUA_SQLBUILDER_DB: oracle
