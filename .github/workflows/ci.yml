@@ -91,11 +91,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip build-essential
-          sudo mkdir -p /opt/duckdb
           cd /tmp
           wget -q https://github.com/duckdb/duckdb/releases/download/v1.5.5/libduckdb-linux-amd64.zip
-          sudo unzip -o libduckdb-linux-amd64.zip -d /opt/duckdb
-          sudo sh -c 'echo /opt/duckdb > /etc/ld.so.conf.d/duckdb.conf'
+          mkdir -p /tmp/duckdb-lib && cd /tmp/duckdb-lib
+          unzip -o ../libduckdb-linux-amd64.zip
+          ls -la
+          # luasql-duckdb expects DUCKDB_DIR/include + DUCKDB_DIR/lib
+          sudo mkdir -p /opt/duckdb/include /opt/duckdb/lib
+          sudo cp duckdb.h /opt/duckdb/include/
+          sudo cp libduckdb.so /opt/duckdb/lib/
+          sudo sh -c 'echo /opt/duckdb/lib > /etc/ld.so.conf.d/duckdb.conf'
           sudo ldconfig
           luarocks install luasql-duckdb DUCKDB_DIR=/opt/duckdb
       - name: Run integration specs against in-process DuckDB
@@ -113,9 +118,11 @@ jobs:
     services:
       clickhouse:
         image: clickhouse/clickhouse-server:24.8
+        env:
+          CLICKHOUSE_PASSWORD: clickhouse
         ports: ["8123:8123"]
         options: >-
-          --health-cmd="clickhouse-client --query 'SELECT 1'"
+          --health-cmd="clickhouse-client --password clickhouse --query 'SELECT 1'"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20

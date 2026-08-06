@@ -396,8 +396,8 @@ local function connect_clickhouse()
   local host = env("CLICKHOUSE_HOST", "127.0.0.1")
   local port = env("CLICKHOUSE_PORT", "8123")
   local user = env("CLICKHOUSE_USER", "default")
-  -- default user has an empty password; pass it explicitly to satisfy auth
-  local url = fmt("http://%s:%s/?user=%s", host, port, user)
+  local password = env("CLICKHOUSE_PASSWORD", "clickhouse")
+  local url = fmt("http://%s:%s/?user=%s&password=%s", host, port, user, password)
 
   local conn = {
     dialect = "clickhouse",
