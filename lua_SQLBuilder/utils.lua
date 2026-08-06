@@ -87,10 +87,10 @@ end
 function SQLUtils.Make_JsonQuery(tableName, query, dialect)
     dialect = dialect or dialect_mod.resolve()
     local function func(k, v, fatherPath, funcs)
-        -- 数字键是数组下标（JSON 数组），渲染为 [N] 段
+        -- 数字键是数组下标（JSON 数组）：Lua 1-based → JSON 0-based
         local segment = k
         if tonumber(k) then
-            segment = fmt("[%d]", tonumber(k))
+            segment = fmt("[%d]", tonumber(k) - 1)
         end
         local path = fatherPath .. segment
         local typeOfv = type(v)

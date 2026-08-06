@@ -74,7 +74,7 @@ local function render_limit_ansi(offset, count)
   end
   return fmt("%s OFFSET %s", count, offset)
 end
--- SQL Server: OFFSET/FETCH after ORDER BY.
+-- SQL Server / Oracle 12c+: OFFSET/FETCH after ORDER BY.
 local function render_limit_mssql(offset, count)
   local offset_n = (offset == nil or offset == "" or tonumber(offset) == 0) and 0 or offset
   return fmt("OFFSET %s ROWS FETCH NEXT %s ROWS ONLY", offset_n, count)
@@ -121,6 +121,28 @@ end
 -- SQL Server: JSON_VALUE(column, '$.a[0].b')
 local function json_path_mssql(table_name, path)
   return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_mssql(table_name), path)
+end
+-- Oracle 12c+: JSON_VALUE(column, '$.a[0].b')
+local function json_path_oracle(table_name, path)
+  return fmt("JSON_VALUE(%s, '$.%s')", quote_ident_ansi(table_name), path)
+end
+-- DuckDB: json_extract_string(column, '$.a[0].b') returns VARCHAR
+local function json_path_duckdb(table_name, path)
+  return fmt("json_extract_string(%s, '$.%s')", quote_ident_ansi(table_name), path)
+end
+-- ClickHouse: JSONExtractString(column, 'a', 0, 'b') — comma-separated key
+-- list, numeric args are array indices.
+local function json_path_clickhouse(table_name, path)
+  local args = {}
+  for part in path:gmatch("[^.]+") do
+    local idx = part:match("^%[(%d+)%]$")
+    if idx then
+      args[#args + 1] = idx
+    else
+      args[#args + 1] = "'" .. part .. "'"
+    end
+  end
+  return fmt("JSONExtractString(%s, %s)", quote_ident_mysql(table_name), table.concat(args, ", "))
 end
 
 local upsert_mysql = {
@@ -191,6 +213,30 @@ local dialects = {
     render_limit = render_limit_mssql,
     upsert = nil,
   },
+  oracle = {
+    name = "oracle",
+    quote_ident = quote_ident_ansi,
+    json_path = json_path_oracle,
+    escape_string = escape_ansi,
+    render_limit = render_limit_mssql, -- Oracle 12c+ OFFSET/FETCH
+    upsert = nil, -- MERGE is a standalone statement
+  },
+  duckdb = {
+    name = "duckdb",
+    quote_ident = quote_ident_ansi,
+    json_path = json_path_duckdb,
+    escape_string = escape_ansi,
+    render_limit = render_limit_ansi,
+    upsert = upsert_sqlite, -- ON CONFLICT ... DO UPDATE, excluded ref
+  },
+  clickhouse = {
+    name = "clickhouse",
+    quote_ident = quote_ident_mysql, -- backticks
+    json_path = json_path_clickhouse,
+    escape_string = escape_mysql, -- backslash style
+    render_limit = render_limit_ansi,
+    upsert = nil, -- table engines (ReplacingMergeTree) handle dedup
+  },
 }
 
 M.dialects = dialects
@@ -209,7 +255,7 @@ function M.resolve(name)
   local dialect = dialects[name]
   if not dialect then
     error("unknown dialect: " .. tostring(name) ..
-      " (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql)", 2)
+      " (built-ins: ansi, mysql, mariadb, postgres, sqlite, mssql, oracle, duckdb, clickhouse)", 2)
   end
   return dialect
 end

@@ -10,7 +10,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local SQLBuilder = require "lua_SQLBuilder"
 
-local DIALECTS = { "mysql", "mariadb", "postgres", "sqlite", "mssql", "ansi" }
+local DIALECTS = { "ansi", "mysql", "mariadb", "postgres", "sqlite", "mssql", "oracle", "duckdb", "clickhouse" }
 
 -- One representative builder per public API, bound to a dialect.
 local function make_builder(api, dialect)

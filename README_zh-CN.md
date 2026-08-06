@@ -104,7 +104,7 @@ sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ id = 1 })
 sqlbuilder.set_default_dialect("postgres")
 ```
 
-内置预设（`mysql`/`postgres`/`sqlite` 在 CI 真实验证）：
+内置预设（`mysql`/`postgres`/`sqlite` 在 CI 真实验证；其余按数据库文档配置）：
 
 | 方言 | 标识符 | 转义 | upsert | LIMIT |
 | ------ | -------- | ------ | -------- | ------- |
@@ -113,6 +113,11 @@ sqlbuilder.set_default_dialect("postgres")
 | `postgres` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `sqlite` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `mssql` | `[x]` | `''` 翻倍 | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `oracle`（12c+） | `"x"` | `''` 翻倍 | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `duckdb` | `"x"` | `''` 翻倍 | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
+| `clickhouse` | `` `x` `` | 反斜杠 | — | `LIMIT n OFFSET m` |
+
+JSON 算子：mysql/mariadb/ansi 用 `->>`；sqlite 用 `json_extract` + `CAST AS TEXT`；postgres 用 `->`/`->>` 链；mssql/oracle 用 `JSON_VALUE`；duckdb 用 `json_extract_string`；clickhouse 用 `JSONExtractString`。
 
 没有预设的数据库：复制相近预设并调整字段（它们是纯配置：`quote_ident`、`json_path`、`escape_string`、`render_limit`、`upsert`）：
 

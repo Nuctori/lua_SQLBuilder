@@ -19,3 +19,4 @@ Thumbs.db
 build/
 dist/
 .vendor-preview/
+nul

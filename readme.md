@@ -116,7 +116,8 @@ sqlbuilder.SELECT("*", { dialect = "mysql" }):FROM("user"):QUERY({ id = 1 })
 sqlbuilder.set_default_dialect("postgres")
 ```
 
-Built-in presets (verified in CI for `mysql`/`postgres`/`sqlite`):
+Built-in presets (verified in CI for `mysql`/`postgres`/`sqlite`; the rest are
+configuration per the database documentation):
 
 | dialect | identifiers | escaping | upsert | LIMIT |
 |---------|-------------|----------|--------|-------|
@@ -125,6 +126,13 @@ Built-in presets (verified in CI for `mysql`/`postgres`/`sqlite`):
 | `postgres` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `sqlite` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
 | `mssql` | `[x]` | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `oracle` (12c+) | `"x"` | `''` doubling | — | `OFFSET n ROWS FETCH NEXT m ROWS ONLY` |
+| `duckdb` | `"x"` | `''` doubling | `ON CONFLICT ... DO UPDATE` | `LIMIT n OFFSET m` |
+| `clickhouse` | `` `x` `` | backslash | — | `LIMIT n OFFSET m` |
+
+JSON operators: mysql/mariadb/ansi use `->>`; sqlite uses `json_extract` with
+`CAST AS TEXT`; postgres uses `->`/`->>` chains; mssql/oracle use `JSON_VALUE`;
+duckdb uses `json_extract_string`; clickhouse uses `JSONExtractString`.
 
 For a database without a preset, copy a close preset and adjust the fields
 (they are plain config: `quote_ident`, `json_path`, `escape_string`,

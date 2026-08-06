@@ -21,6 +21,18 @@ local function MakeSql(op, sql)
     end
 end
 
+-- LIMIT 片段可能以 OFFSET 开头（mssql/oracle 的 OFFSET/FETCH 语法）——
+-- 此时不加 "LIMIT" 关键字。
+local function MakeLimitSql(fragment)
+    if fragment == nil or fragment == "" then
+        return ""
+    end
+    if fragment:match("^OFFSET") then
+        return " " .. fragment
+    end
+    return fmt(" LIMIT %s", fragment)
+end
+
 function SQLBuilder:ctor(...)
     local tableOperator = ...
     local opts = select(2, ...)
@@ -122,7 +134,7 @@ function SQLBuilder:to_sql()
         MakeSql("GROUP BY",self._group:to_sql()),
         MakeSql("HAVING",self._having:to_sql()),
         MakeSql("ORDER BY",self._order:to_sql()),
-        MakeSql("LIMIT",self._limit:to_sql()),
+        MakeLimitSql(self._limit:to_sql()),
         MakeSql("PROCEDURE", self._procedure),
         self._forUpdate and " FOR UPDATE" or "",
     }
@@ -154,7 +166,7 @@ function SQLBuilder:to_prepare()
         MakeSql("GROUP BY",self._group:to_sql()),
         MakeSql("HAVING",havingSql),
         MakeSql("ORDER BY",self._order:to_sql()),
-        MakeSql("LIMIT",self._limit:to_sql()),
+        MakeLimitSql(self._limit:to_sql()),
         MakeSql("PROCEDURE", self._procedure),
         self._forUpdate and " FOR UPDATE" or "",
     }
