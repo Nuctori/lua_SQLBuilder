@@ -123,10 +123,11 @@ jobs:
             luarocks install luasql-mysql MYSQL_INCDIR=/usr/include/mysql MYSQL_LIBDIR=/usr/lib/x86_64-linux-gnu
           else
             # pgmoon is pure Lua; md5 auth (POSTGRES_HOST_AUTH_METHOD) needs
-            # no crypto rock - avoids luaossl vs OpenSSL 3 build failure
+            # no crypto rock; lua-cjson (openresty fork) supports Lua 5.4
+            # (the plain 'cjson' rock does not)
             sudo apt-get install -y libssl-dev
             luarocks install luasocket
-            luarocks install cjson
+            luarocks install lua-cjson
             luarocks install pgmoon
           fi
       - name: Run integration specs against ${{ matrix.db }}
