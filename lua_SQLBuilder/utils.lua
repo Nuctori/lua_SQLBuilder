@@ -1,7 +1,17 @@
 local SQLUtils = {}
 local fmt = string.format
-local json = require "lua_SQLBuilder.json"
 local dialect_mod = require "lua_SQLBuilder.dialect"
+
+-- Lazy json: the base builder loads with zero JSON dependency; the json
+-- module (cjson in production, vendored json.lua otherwise) is only required
+-- when a value actually needs encoding.
+local json
+local function get_json()
+  if not json then
+    json = require "lua_SQLBuilder.json"
+  end
+  return json
+end
 
 -- MySQL-flavored escape map (also the historical quote_to_str behavior).
 local escape_map = {
@@ -58,7 +68,7 @@ function SQLUtils.render_value(v, dialect)
         return fmt("'%s'", dialect.escape_string(v))
     end
     if t == "table" then
-        return fmt("'%s'", json.encode(v))
+        return fmt("'%s'", get_json().encode(v))
     end
     if t == "boolean" or t == "number" then
         return tostring(v)
